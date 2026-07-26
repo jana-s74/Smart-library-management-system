@@ -1,0 +1,113 @@
+package utils;
+
+import model.Book;
+import model.BorrowHistory;
+import model.Student;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.List;
+
+public class ReportExporter {
+
+    public static String exportBooksToCSV(List<Book> books, String filePath) throws IOException {
+        File file = new File(filePath);
+        try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+            writer.println("Book ID,ISBN,Title,Author,Publisher,Category,Language,Shelf,Total Copies,Available Copies");
+            for (Book b : books) {
+                writer.printf("%d,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%d,%d%n",
+                        b.getBookId(),
+                        escapeCsv(b.getIsbn()),
+                        escapeCsv(b.getTitle()),
+                        escapeCsv(b.getAuthor()),
+                        escapeCsv(b.getPublisher()),
+                        escapeCsv(b.getCategoryName()),
+                        escapeCsv(b.getLanguage()),
+                        escapeCsv(b.getShelfNumber()),
+                        b.getTotalCopies(),
+                        b.getAvailableCopies());
+            }
+        }
+        return file.getAbsolutePath();
+    }
+
+    public static String exportStudentsToCSV(List<Student> students, String filePath) throws IOException {
+        File file = new File(filePath);
+        try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+            writer.println("Student ID,Code,Name,Email,Phone,Department,Year,Borrowed,Fines Owed,Status");
+            for (Student s : students) {
+                writer.printf("%d,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%d,%d,%.2f,\"%s\"%n",
+                        s.getId(),
+                        escapeCsv(s.getStudentCode()),
+                        escapeCsv(s.getFullName()),
+                        escapeCsv(s.getEmail()),
+                        escapeCsv(s.getPhone()),
+                        escapeCsv(s.getDepartment()),
+                        s.getYearOfStudy(),
+                        s.getCurrentBorrowed(),
+                        s.getTotalFinesOwed(),
+                        s.getStatus());
+            }
+        }
+        return file.getAbsolutePath();
+    }
+
+    public static String exportBorrowHistoryToCSV(List<BorrowHistory> records, String filePath) throws IOException {
+        File file = new File(filePath);
+        try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+            writer.println("Borrow ID,Student Code,Student Name,Book Title,ISBN,Borrow Date,Due Date,Return Date,Status,Fine");
+            for (BorrowHistory bh : records) {
+                writer.printf("%d,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",%.2f%n",
+                        bh.getBorrowId(),
+                        escapeCsv(bh.getStudentCode()),
+                        escapeCsv(bh.getStudentName()),
+                        escapeCsv(bh.getBookTitle()),
+                        escapeCsv(bh.getIsbn()),
+                        bh.getBorrowDate() != null ? bh.getBorrowDate().toString() : "",
+                        bh.getDueDate() != null ? bh.getDueDate().toString() : "",
+                        bh.getReturnDate() != null ? bh.getReturnDate().toString() : "-",
+                        bh.getStatus(),
+                        bh.getFineAmount());
+            }
+        }
+        return file.getAbsolutePath();
+    }
+
+    public static String generateHTMLReport(String title, String subtitle, String tableHeaderHtml, String tableRowsHtml, String filePath) throws IOException {
+        File file = new File(filePath);
+        try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+            writer.println("<!DOCTYPE html>");
+            writer.println("<html lang=\"en\">");
+            writer.println("<head>");
+            writer.println("<meta charset=\"UTF-8\">");
+            writer.println("<title>" + title + "</title>");
+            writer.println("<link rel=\"stylesheet\" href=\"../../web/css/report_style.css\">");
+            writer.println("</head>");
+            writer.println("<body>");
+            writer.println("<div class=\"report-container\">");
+            writer.println("  <div class=\"report-header\">");
+            writer.println("    <h1>📚 LibraAI System Report</h1>");
+            writer.println("    <h2>" + title + "</h2>");
+            writer.println("    <p class=\"subtitle\">" + subtitle + "</p>");
+            writer.println("  </div>");
+            writer.println("  <table class=\"styled-table\">");
+            writer.println("    <thead>" + tableHeaderHtml + "</thead>");
+            writer.println("    <tbody>" + tableRowsHtml + "</tbody>");
+            writer.println("  </table>");
+            writer.println("  <div class=\"report-footer\">");
+            writer.println("    <p>Generated by <strong>LibraAI – Smart Library Management System</strong></p>");
+            writer.println("  </div>");
+            writer.println("</div>");
+            writer.println("</body>");
+            writer.println("</html>");
+        }
+        return file.getAbsolutePath();
+    }
+
+    private static String escapeCsv(String input) {
+        if (input == null) return "";
+        return input.replace("\"", "\"\"");
+    }
+}

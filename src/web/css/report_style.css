@@ -1,0 +1,142 @@
+/* ============================================================
+ * 🎨 LibraAI Modern Web Report Stylesheet
+ * Theme Colors: Orange (#F97316), White (#FFFFFF), Warm Light (#FFF8F3)
+ * ============================================================ */
+
+:root {
+    --primary-orange: #F97316;
+    --secondary-white: #FFFFFF;
+    --background-warm: #FFF8F3;
+    --sidebar-orange: #EA580C;
+    --text-dark: #1F2937;
+    --text-muted: #6B7280;
+    --border-gray: #E5E7EB;
+    --shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+body {
+    background-color: var(--background-warm);
+    color: var(--text-dark);
+    line-height: 1.6;
+}
+
+.app-header {
+    background-color: var(--sidebar-orange);
+    color: var(--secondary-white);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.app-header .logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.app-header .badge {
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+}
+
+.report-container {
+    max-width: 1000px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.card {
+    background: var(--secondary-white);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-gray);
+    box-shadow: var(--shadow-soft);
+    transition: transform 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+}
+
+.card h3 {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.stat-num {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-orange);
+}
+
+.subtext {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.chart-section {
+    background: var(--secondary-white);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-gray);
+    box-shadow: var(--shadow-soft);
+}
+
+.chart-section h2 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    color: var(--text-dark);
+}
+
+.chart-box {
+    display: flex;
+    justify-content: center;
+}
+
+.styled-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-size: 0.95rem;
+}
+
+.styled-table thead tr {
+    background-color: #F3F4F6;
+    color: var(--text-dark);
+    text-align: left;
+    font-weight: bold;
+}
+
+.styled-table th, .styled-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-gray);
+}
+
+.styled-table tbody tr:nth-of-type(even) {
+    background-color: #FAFAFA;
+}
+
+.app-footer {
+    text-align: center;
+    padding: 2rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}

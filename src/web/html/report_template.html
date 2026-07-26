@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📚 LibraAI – Interactive Analytics & Audit Report</title>
+    <link rel="stylesheet" href="../css/report_style.css">
+</head>
+<body>
+
+    <header class="app-header">
+        <div class="logo">📚 LibraAI Report Portal</div>
+        <div class="badge">Live Audit Sync</div>
+    </header>
+
+    <main class="report-container">
+        <section class="summary-cards">
+            <div class="card">
+                <h3>Total Books</h3>
+                <p class="stat-num" id="totalBooks">24</p>
+                <span class="subtext">Across 5 shelves</span>
+            </div>
+            <div class="card">
+                <h3>Active Readers</h3>
+                <p class="stat-num" id="activeStudents">12</p>
+                <span class="subtext">Registered Accounts</span>
+            </div>
+            <div class="card">
+                <h3>Fines Collected</h3>
+                <p class="stat-num" id="finesAmount">$14.50</p>
+                <span class="subtext">Overdue Payments</span>
+            </div>
+        </section>
+
+        <section class="chart-section">
+            <h2>📊 Circulation Analytics</h2>
+            <div class="chart-box">
+                <canvas id="analyticsCanvas" width="600" height="250"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <p>&copy; 2026 LibraAI – Smart Library Management System. All rights reserved.</p>
+    </footer>
+
+    <script src="../js/report_chart.js"></script>
+</body>
+</html>
