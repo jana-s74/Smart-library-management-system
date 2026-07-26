@@ -1,588 +1,452 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📚 LibraAI – Smart Library Management System</title>
-    <meta name="description" content="LibraAI Smart Library Management System - Next-gen circulation dashboard, catalog management, borrowing tracker, and real-time library analytics.">
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>LibraAI – Smart Library Management System</title>
+<meta name="description" content="LibraAI Smart Library – Admin dashboard for book circulation, student management, overdue tracking and analytics.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-    <!-- App Container -->
-    <div id="app" class="app-root">
+<!-- ==================== LANDING PAGE ==================== -->
+<div id="landingPage">
 
-        <!-- Header Bar -->
-        <header class="top-navbar">
-            <div class="brand-area">
-                <div class="brand-logo">
-                    <span class="logo-icon">📚</span>
-                    <span class="logo-text">Libra<span class="accent-text">AI</span></span>
-                </div>
-                <div class="server-badge" id="serverStatusBadge">
-                    <span class="status-dot online"></span>
-                    <span id="serverStatusText">Backend Online (JDK HttpServer)</span>
-                </div>
-            </div>
-
-            <!-- Navigation Tabs -->
-            <nav class="nav-tabs">
-                <button class="nav-pill active" id="tabDashboardBtn" onclick="switchTab('dashboard')">
-                    <span class="icon">📊</span> Dashboard
-                </button>
-                <button class="nav-pill" id="tabCatalogBtn" onclick="switchTab('catalog')">
-                    <span class="icon">📖</span> Book Catalog
-                </button>
-                <button class="nav-pill" id="tabCirculationBtn" onclick="switchTab('circulation')">
-                    <span class="icon">🔄</span> Circulation
-                </button>
-                <button class="nav-pill" id="tabStudentsBtn" onclick="switchTab('students')">
-                    <span class="icon">👥</span> Members
-                </button>
-                <button class="nav-pill" id="tabAnalyticsBtn" onclick="switchTab('analytics')">
-                    <span class="icon">📈</span> Analytics Report
-                </button>
-            </nav>
-
-            <!-- User Auth Profile Controls -->
-            <div class="user-action-area">
-                <div id="loggedOutView" class="auth-buttons">
-                    <button class="btn btn-outline" id="loginModalBtn" onclick="openLoginModal()">Login</button>
-                    <button class="btn btn-primary" id="registerModalBtn" onclick="openRegisterModal()">Register</button>
-                </div>
-                <div id="loggedInView" class="user-profile-widget hidden">
-                    <div class="avatar" id="userAvatar">A</div>
-                    <div class="user-info">
-                        <span class="user-name" id="userFullName">Admin User</span>
-                        <span class="user-role-badge" id="userRoleBadge">ADMIN</span>
-                    </div>
-                    <button class="btn btn-icon" title="Logout" id="logoutBtn" onclick="logoutUser()">🚪</button>
-                </div>
-            </div>
-        </header>
-
-        <!-- Main Content Area -->
-        <main class="main-container">
-
-            <!-- TAB 1: DASHBOARD VIEW -->
-            <section id="viewDashboard" class="tab-view active">
-                
-                <!-- Hero Banner -->
-                <div class="hero-banner">
-                    <div class="hero-content">
-                        <span class="hero-tag">✨ Next-Generation Library Experience</span>
-                        <h1 class="hero-title">Welcome to Libra<span class="highlight">AI</span> Portal</h1>
-                        <p class="hero-subtitle">Intelligent book discovery, automated circulation tracking, and real-time analytics powered by Java high-performance backend.</p>
-                        <div class="hero-actions">
-                            <button class="btn btn-primary btn-lg" onclick="switchTab('catalog')">🔍 Browse Catalog</button>
-                            <button class="btn btn-glass btn-lg" onclick="openIssueModal()">⚡ Quick Issue Book</button>
-                        </div>
-                    </div>
-                    <div class="hero-illustration">
-                        <div class="floating-card c1">
-                            <span class="fc-icon">🚀</span>
-                            <div>
-                                <strong>Fast Search</strong>
-                                <small>Binary Search O(log N)</small>
-                            </div>
-                        </div>
-                        <div class="floating-card c2">
-                            <span class="fc-icon">⚡</span>
-                            <div>
-                                <strong>Live Sync</strong>
-                                <small>H2 / SQLite DB</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- KPI Stats Cards -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon orange">📚</div>
-                        <div class="stat-details">
-                            <span class="stat-label">Total Titles</span>
-                            <span class="stat-value" id="statTotalTitles">--</span>
-                            <span class="stat-sub" id="statTotalCopiesSub">-- Copies Total</span>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-icon emerald">✅</div>
-                        <div class="stat-details">
-                            <span class="stat-label">Available Copies</span>
-                            <span class="stat-value" id="statAvailableCopies">--</span>
-                            <span class="stat-sub">Ready to borrow</span>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-icon blue">🔄</div>
-                        <div class="stat-details">
-                            <span class="stat-label">Active Borrows</span>
-                            <span class="stat-value" id="statActiveBorrows">--</span>
-                            <span class="stat-sub">Currently out on loan</span>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-icon purple">👥</div>
-                        <div class="stat-details">
-                            <span class="stat-label">Registered Members</span>
-                            <span class="stat-value" id="statTotalStudents">--</span>
-                            <span class="stat-sub">Active reader accounts</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Dashboard Split Section: Featured Books & Analytics -->
-                <div class="dashboard-split">
-                    <div class="content-panel full-width">
-                        <div class="panel-header">
-                            <h2>🔥 Featured & Popular Titles</h2>
-                            <button class="btn btn-text" onclick="switchTab('catalog')">View All →</button>
-                        </div>
-                        <div class="popular-books-scroll" id="popularBooksContainer">
-                            <!-- Dynamic Cards rendered by JS -->
-                            <div class="loading-spinner">Loading books...</div>
-                        </div>
-                    </div>
-                </div>
-
-            </section>
-
-            <!-- TAB 2: BOOK CATALOG VIEW -->
-            <section id="viewCatalog" class="tab-view hidden">
-                <div class="section-header">
-                    <div>
-                        <h2>📚 Book Catalog & Collection</h2>
-                        <p class="section-desc">Search, filter, and manage all physical and digital volumes in the library repository.</p>
-                    </div>
-                    <div class="header-actions">
-                        <button class="btn btn-primary" id="addBookHeaderBtn" onclick="openAddBookModal()">➕ Add New Book</button>
-                    </div>
-                </div>
-
-                <!-- Search and Filter Bar -->
-                <div class="filter-bar">
-                    <div class="search-box">
-                        <span class="search-icon">🔍</span>
-                        <input type="text" id="catalogSearchInput" placeholder="Search by Title, Author, or ISBN (Binary Search enabled)..." oninput="handleCatalogSearch()">
-                    </div>
-                    
-                    <div class="filter-controls">
-                        <div class="control-group">
-                            <label for="sortSelect">Sort By:</label>
-                            <select id="sortSelect" onchange="fetchCatalogBooks()">
-                                <option value="title">Title (A-Z)</option>
-                                <option value="author">Author (A-Z)</option>
-                                <option value="availability">Availability (Most Copies)</option>
-                            </select>
-                        </div>
-
-                        <div class="view-toggle-btns">
-                            <button class="btn btn-icon active" id="viewGridBtn" onclick="setCatalogView('grid')" title="Grid View">🔲</button>
-                            <button class="btn btn-icon" id="viewTableBtn" onclick="setCatalogView('table')" title="Table View">☰</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Books Display Container -->
-                <div id="catalogGridContainer" class="books-grid">
-                    <!-- Rendered dynamically -->
-                </div>
-
-                <div id="catalogTableContainer" class="table-wrapper hidden">
-                    <table class="modern-table">
-                        <thead>
-                            <tr>
-                                <th>Book ID</th>
-                                <th>Title & Author</th>
-                                <th>Category</th>
-                                <th>ISBN</th>
-                                <th>Location</th>
-                                <th>Copies</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="catalogTableBody">
-                            <!-- Rendered dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- TAB 3: CIRCULATION & BORROWING VIEW -->
-            <section id="viewCirculation" class="tab-view hidden">
-                <div class="section-header">
-                    <div>
-                        <h2>🔄 Circulation & Loan Center</h2>
-                        <p class="section-desc">Issue books to members, process returns, compute fine calculations, and view full audit history.</p>
-                    </div>
-                    <div class="header-actions">
-                        <button class="btn btn-primary" onclick="openIssueModal()">⚡ Issue New Book</button>
-                    </div>
-                </div>
-
-                <!-- Borrow History Table -->
-                <div class="content-panel">
-                    <div class="panel-header">
-                        <h3>📋 Loan Transactions & Borrow History</h3>
-                        <button class="btn btn-outline btn-sm" onclick="fetchBorrowHistory()">🔄 Refresh</button>
-                    </div>
-                    <div class="table-wrapper">
-                        <table class="modern-table">
-                            <thead>
-                                <tr>
-                                    <th>Loan ID</th>
-                                    <th>Member Code & Name</th>
-                                    <th>Book Title</th>
-                                    <th>Issue Date</th>
-                                    <th>Due Date</th>
-                                    <th>Return Date</th>
-                                    <th>Status</th>
-                                    <th>Fine</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="borrowHistoryTableBody">
-                                <!-- Rendered dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- TAB 4: STUDENTS / MEMBERS VIEW -->
-            <section id="viewStudents" class="tab-view hidden">
-                <div class="section-header">
-                    <div>
-                        <h2>👥 Registered Readers Directory</h2>
-                        <p class="section-desc">Manage student accounts, check current active loans, and monitor account statuses.</p>
-                    </div>
-                    <div class="header-actions">
-                        <button class="btn btn-primary" onclick="openRegisterModal()">➕ Register New Student</button>
-                    </div>
-                </div>
-
-                <div class="content-panel">
-                    <div class="table-wrapper">
-                        <table class="modern-table">
-                            <thead>
-                                <tr>
-                                    <th>Student ID</th>
-                                    <th>Code</th>
-                                    <th>Full Name</th>
-                                    <th>Department</th>
-                                    <th>Year</th>
-                                    <th>Borrowed</th>
-                                    <th>Fines Owed</th>
-                                    <th>Status</th>
-                                    <th>Account Controls</th>
-                                </tr>
-                            </thead>
-                            <tbody id="studentsTableBody">
-                                <!-- Rendered dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- TAB 5: ANALYTICS & AUDIT REPORT VIEW -->
-            <section id="viewAnalytics" class="tab-view hidden">
-                <div class="section-header">
-                    <div>
-                        <h2>📈 Analytics & Audit Executive Report</h2>
-                        <p class="section-desc">Visual insights into collection usage, borrow distribution, and circulation analytics.</p>
-                    </div>
-                    <div class="header-actions">
-                        <button class="btn btn-outline" onclick="window.print()">🖨️ Print / Export PDF</button>
-                    </div>
-                </div>
-
-                <div class="report-grid">
-                    <div class="report-card">
-                        <h3>📊 Circulation Category Distribution</h3>
-                        <div class="canvas-container">
-                            <canvas id="webAnalyticsCanvas" width="650" height="280"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="report-card">
-                        <h3>⚡ System & Backend Telemetry</h3>
-                        <div class="telemetry-list">
-                            <div class="tele-item">
-                                <span>Engine:</span>
-                                <strong>JDK HTTP Server + H2/SQLite JDBC</strong>
-                            </div>
-                            <div class="tele-item">
-                                <span>Sorting Algorithm:</span>
-                                <strong>Merge Sort O(N log N)</strong>
-                            </div>
-                            <div class="tele-item">
-                                <span>Lookup Index:</span>
-                                <strong>HashMap Indexing O(1)</strong>
-                            </div>
-                            <div class="tele-item">
-                                <span>Binary Search:</span>
-                                <strong>Title Index O(log N)</strong>
-                            </div>
-                            <div class="tele-item">
-                                <span>Fine Policy:</span>
-                                <strong>$0.50 / Overdue Day</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-        </main>
-
-        <!-- Footer -->
-        <footer class="app-footer">
-            <p>&copy; 2026 <strong>LibraAI System</strong>. Connected to Java Backend Server on port 8080. Built with HTML5, CSS3, and JavaScript.</p>
-        </footer>
-
+  <!-- Landing Navbar -->
+  <nav class="land-nav">
+    <div class="land-logo">📚 Libra<span>AI</span></div>
+    <div class="land-nav-links">
+      <a href="#features">Features</a>
+      <a href="#stats">About</a>
     </div>
+    <button class="btn btn-primary" onclick="openLoginModal()" style="border-radius:9999px;padding:.5rem 1.4rem;">🔑 Admin Login</button>
+  </nav>
 
-    <!-- ==================== MODALS ==================== -->
+  <!-- Hero -->
+  <section class="land-hero">
+    <div class="hero-text">
+      <div class="hero-badge">✨ Next-Gen Library Platform</div>
+      <h1 class="hero-h1">Smart Library<br>Management<br>with <em>LibraAI</em></h1>
+      <p class="hero-sub">A powerful admin dashboard to manage books, track student borrowing, monitor overdue returns and fine collection — all in one beautiful interface.</p>
+      <div class="hero-btns">
+        <button class="btn btn-lg" style="background:#fff;color:#7C3AED;font-weight:700;border-radius:9999px;" onclick="openLoginModal()">🔑 Admin Login</button>
+        <button class="btn btn-glass btn-lg" style="border-radius:9999px;" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">Explore Features</button>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-card">
+        <div class="hc-icon">📖</div>
+        <div><strong>12+ Books Available</strong><small>Updated in real-time</small></div>
+      </div>
+      <div class="hero-card">
+        <div class="hc-icon">🚨</div>
+        <div><strong>Overdue Alerts</strong><small>Instant notifications</small></div>
+      </div>
+      <div class="hero-card">
+        <div class="hc-icon">📊</div>
+        <div><strong>Analytics Dashboard</strong><small>Visual reports</small></div>
+      </div>
+    </div>
+  </section>
 
-    <!-- Login Modal -->
-    <div id="loginModal" class="modal-overlay hidden">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>🔑 Login to LibraAI</h3>
-                <button class="close-btn" onclick="closeLoginModal()">✕</button>
-            </div>
-            <div class="modal-body">
-                <form id="loginForm" onsubmit="handleLoginSubmit(event)">
-                    <div class="form-group">
-                        <label for="loginRole">Account Type</label>
-                        <select id="loginRole" class="form-input">
-                            <option value="ADMIN">Administrator (Staff / Librarian)</option>
-                            <option value="STUDENT" selected>Student Reader</option>
-                        </select>
-                    </div>
+  <!-- Features -->
+  <section class="land-features" id="features">
+    <div class="land-section-title">
+      <h2>Everything You Need to <span>Run a Library</span></h2>
+      <p>Built with Java backend and a modern HTML5 frontend — fast, reliable, and beautiful.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feat-card">
+        <div class="feat-icon p">📚</div>
+        <h3>Book Catalog Management</h3>
+        <p>Add, edit, delete books. Search with binary search algorithm. Sort by title, author or availability.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon s">🔄</div>
+        <h3>Circulation & Borrowing</h3>
+        <p>Issue books to students, process returns, track due dates and calculate overdue fines automatically.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon g">👥</div>
+        <h3>Student Registration</h3>
+        <p>Admin registers students with unique register numbers (2024100–2024150). Full profile management.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon a">🚨</div>
+        <h3>Overdue Alert System</h3>
+        <p>Dashboard right panel shows exactly which students haven't returned books, days overdue and fine amount.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon p">📈</div>
+        <h3>Analytics & Reports</h3>
+        <p>Visual bar charts for book category distribution. Telemetry on backend algorithms and performance.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon s">🔒</div>
+        <h3>Secure Admin Access</h3>
+        <p>Password hashing with bcrypt. Admin-only registration ensures only authorized staff can add students.</p>
+      </div>
+    </div>
+  </section>
 
-                    <div class="form-group">
-                        <label for="loginUsername">Username / Student Code</label>
-                        <input type="text" id="loginUsername" class="form-input" placeholder="e.g. STU1001 or admin" required>
-                    </div>
+  <!-- Stats -->
+  <section class="land-stats" id="stats">
+    <div class="stats-row">
+      <div class="stat-bubble"><div class="num">12+</div><div class="lbl">Books in Catalog</div></div>
+      <div class="stat-bubble"><div class="num">51</div><div class="lbl">Student Slots (2024100–2024150)</div></div>
+      <div class="stat-bubble"><div class="num">100%</div><div class="lbl">Admin-Controlled</div></div>
+      <div class="stat-bubble"><div class="num">₹0.50</div><div class="lbl">Fine per Overdue Day</div></div>
+    </div>
+  </section>
 
-                    <div class="form-group">
-                        <label for="loginPassword">Password</label>
-                        <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required>
-                    </div>
+  <!-- CTA -->
+  <section class="land-cta">
+    <h2>Ready to manage your library?</h2>
+    <p>Login as admin to access the full dashboard with book management, student registration and overdue tracking.</p>
+    <button class="btn btn-primary btn-lg" style="border-radius:9999px;" onclick="openLoginModal()">🔑 Get Started – Admin Login</button>
+  </section>
 
-                    <div class="modal-actions">
-                        <button type="button" class="btn btn-outline" onclick="closeLoginModal()">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Sign In</button>
-                    </div>
-                </form>
-            </div>
+  <!-- Footer -->
+  <footer class="land-footer">© 2026 <span>LibraAI System</span> – Powered by Java JDK HttpServer + H2/SQLite Database</footer>
+</div>
+
+<!-- ==================== DASHBOARD (shown after login) ==================== -->
+<div id="dashboardPage" class="hidden">
+
+  <!-- Top Navbar -->
+  <header class="top-navbar">
+    <div class="brand-area">
+      <div class="brand-logo"><span class="logo-icon">📚</span>Libra<span class="accent-text">AI</span></div>
+      <div class="server-badge" id="serverStatusBadge">
+        <span class="status-dot"></span>
+        <span id="serverStatusText">Backend Online</span>
+      </div>
+    </div>
+    <nav class="nav-tabs">
+      <button class="nav-pill active" id="tabDashboardBtn" onclick="switchTab('dashboard')"><span>📊</span>Dashboard</button>
+      <button class="nav-pill" id="tabCatalogBtn" onclick="switchTab('catalog')"><span>📖</span>Catalog</button>
+      <button class="nav-pill" id="tabCirculationBtn" onclick="switchTab('circulation')"><span>🔄</span>Circulation</button>
+      <button class="nav-pill" id="tabStudentsBtn" onclick="switchTab('students')"><span>👥</span>Members</button>
+      <button class="nav-pill" id="tabAnalyticsBtn" onclick="switchTab('analytics')"><span>📈</span>Analytics</button>
+    </nav>
+    <div class="user-action-area">
+      <div id="loggedInView" class="user-profile-widget">
+        <div class="avatar" id="userAvatar">A</div>
+        <div class="user-info">
+          <span class="user-name" id="userFullName">Admin</span>
+          <span class="user-role-badge" id="userRoleBadge">ADMIN</span>
         </div>
+        <button class="btn btn-icon" title="Logout" id="logoutBtn" onclick="logoutUser()">🚪</button>
+      </div>
     </div>
+  </header>
 
-    <!-- Register Modal -->
-    <div id="registerModal" class="modal-overlay hidden">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>📝 Student Registration</h3>
-                <button class="close-btn" onclick="closeRegisterModal()">✕</button>
-            </div>
-            <div class="modal-body">
-                <form id="registerForm" onsubmit="handleRegisterSubmit(event)">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="regCode">Student Code</label>
-                            <input type="text" id="regCode" class="form-input" placeholder="STU1005" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="regFullName">Full Name</label>
-                            <input type="text" id="regFullName" class="form-input" placeholder="Alex Johnson" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="regEmail">Email Address</label>
-                            <input type="email" id="regEmail" class="form-input" placeholder="alex@university.edu" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="regPhone">Phone Number</label>
-                            <input type="tel" id="regPhone" class="form-input" placeholder="+1 555-0192">
-                        </div>
-                        <div class="form-group">
-                            <label for="regDept">Department</label>
-                            <input type="text" id="regDept" class="form-input" placeholder="Computer Science" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="regYear">Year of Study</label>
-                            <input type="number" id="regYear" class="form-input" min="1" max="6" value="1" required>
-                        </div>
-                        <div class="form-group full-width">
-                            <label for="regPassword">Set Password</label>
-                            <input type="password" id="regPassword" class="form-input" placeholder="••••••••" required>
-                        </div>
-                    </div>
+  <main class="main-container">
 
-                    <div class="modal-actions">
-                        <button type="button" class="btn btn-outline" onclick="closeRegisterModal()">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Create Account</button>
-                    </div>
-                </form>
-            </div>
+    <!-- TAB 1: DASHBOARD -->
+    <section id="viewDashboard" class="tab-view active">
+      <div class="hero-banner">
+        <div class="hero-content">
+          <span class="hero-tag">✨ Admin Dashboard</span>
+          <h1 class="hero-title">Welcome back, <span class="highlight" id="dashWelcomeName">Admin</span>!</h1>
+          <p class="hero-subtitle">Manage books, track circulation, monitor overdue returns and maintain student records from one place.</p>
+          <div class="hero-actions">
+            <button class="btn btn-lg" style="background:#fff;color:#7C3AED;font-weight:700;border-radius:9999px;" onclick="switchTab('catalog')">📖 Browse Catalog</button>
+            <button class="btn btn-glass btn-lg" style="border-radius:9999px;" onclick="openIssueModal()">⚡ Issue Book</button>
+          </div>
         </div>
-    </div>
-
-    <!-- Add/Edit Book Modal -->
-    <div id="bookModal" class="modal-overlay hidden">
-        <div class="modal-card modal-lg">
-            <div class="modal-header">
-                <h3 id="bookModalTitle">➕ Add New Book</h3>
-                <button class="close-btn" onclick="closeBookModal()">✕</button>
-            </div>
-            <div class="modal-body">
-                <form id="bookForm" onsubmit="handleBookSubmit(event)">
-                    <input type="hidden" id="bookIdInput" value="">
-                    
-                    <div class="form-grid">
-                        <div class="form-group full-width">
-                            <label for="bookTitleInput">Book Title</label>
-                            <input type="text" id="bookTitleInput" class="form-input" placeholder="e.g. Introduction to Algorithms" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="bookAuthorInput">Author(s)</label>
-                            <input type="text" id="bookAuthorInput" class="form-input" placeholder="e.g. Thomas H. Cormen" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="bookIsbnInput">ISBN-13</label>
-                            <input type="text" id="bookIsbnInput" class="form-input" placeholder="978-0262033848" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="bookPublisherInput">Publisher</label>
-                            <input type="text" id="bookPublisherInput" class="form-input" placeholder="MIT Press">
-                        </div>
-                        <div class="form-group">
-                            <label for="bookCategoryInput">Category Name</label>
-                            <input type="text" id="bookCategoryInput" class="form-input" placeholder="Computer Science" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="bookCopiesInput">Total Copies</label>
-                            <input type="number" id="bookCopiesInput" class="form-input" min="1" value="5" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="bookAvailableInput">Available Copies</label>
-                            <input type="number" id="bookAvailableInput" class="form-input" min="0" value="5" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="bookShelfInput">Shelf Location</label>
-                            <input type="text" id="bookShelfInput" class="form-input" placeholder="Shelf A-4">
-                        </div>
-                        <div class="form-group">
-                            <label for="bookLanguageInput">Language</label>
-                            <input type="text" id="bookLanguageInput" class="form-input" value="English">
-                        </div>
-                        <div class="form-group full-width">
-                            <label for="bookDescInput">Description / Synopsis</label>
-                            <textarea id="bookDescInput" class="form-input" rows="3" placeholder="Brief summary of the book content..."></textarea>
-                        </div>
-                    </div>
-
-                    <div class="modal-actions">
-                        <button type="button" class="btn btn-outline" onclick="closeBookModal()">Cancel</button>
-                        <button type="submit" class="btn btn-primary" id="saveBookBtn">Save Book</button>
-                    </div>
-                </form>
-            </div>
+        <div class="hero-illustration">
+          <div class="floating-card c1"><span class="fc-icon">🚀</span><div><strong>Binary Search</strong><small>O(log N) Lookup</small></div></div>
+          <div class="floating-card c2"><span class="fc-icon">⚡</span><div><strong>Live Data</strong><small>JDK HttpServer</small></div></div>
         </div>
-    </div>
+      </div>
 
-    <!-- Issue Book Modal -->
-    <div id="issueModal" class="modal-overlay hidden">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>⚡ Issue Book to Member</h3>
-                <button class="close-btn" onclick="closeIssueModal()">✕</button>
-            </div>
-            <div class="modal-body">
-                <form id="issueForm" onsubmit="handleIssueSubmit(event)">
-                    <div class="form-group">
-                        <label for="issueStudentSelect">Select Student</label>
-                        <select id="issueStudentSelect" class="form-input" required>
-                            <!-- Populated dynamically -->
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="issueBookSelect">Select Book</label>
-                        <select id="issueBookSelect" class="form-input" required>
-                            <!-- Populated dynamically -->
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="issueLoanDays">Loan Duration (Days)</label>
-                        <input type="number" id="issueLoanDays" class="form-input" min="1" max="60" value="14" required>
-                    </div>
-
-                    <div class="modal-actions">
-                        <button type="button" class="btn btn-outline" onclick="closeIssueModal()">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Confirm & Issue</button>
-                    </div>
-                </form>
-            </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon orange">📚</div>
+          <div class="stat-details"><span class="stat-label">Total Titles</span><span class="stat-value" id="statTotalTitles">--</span><span class="stat-sub" id="statTotalCopiesSub">-- copies</span></div>
         </div>
-    </div>
-
-    <!-- Book Detail Modal -->
-    <div id="detailModal" class="modal-overlay hidden">
-        <div class="modal-card modal-lg">
-            <div class="modal-header">
-                <h3 id="detailBookTitle">Book Details</h3>
-                <button class="close-btn" onclick="closeDetailModal()">✕</button>
-            </div>
-            <div class="modal-body">
-                <div class="book-detail-layout">
-                    <div class="detail-cover-box">
-                        <div class="book-cover-placeholder" id="detailCoverIcon">📖</div>
-                        <div class="stock-pill" id="detailStockBadge">Available</div>
-                    </div>
-                    <div class="detail-info-box">
-                        <h2 id="detailTitleText">Title</h2>
-                        <p class="detail-author" id="detailAuthorText">by Author</p>
-                        
-                        <div class="info-chips">
-                            <span class="chip" id="detailCategoryChip">Category</span>
-                            <span class="chip" id="detailIsbnChip">ISBN</span>
-                            <span class="chip" id="detailLangChip">English</span>
-                        </div>
-
-                        <p class="detail-synopsis" id="detailDescText">Description...</p>
-
-                        <div class="detail-grid">
-                            <div><strong>Shelf Location:</strong> <span id="detailLocation">A-1</span></div>
-                            <div><strong>Total Copies:</strong> <span id="detailTotalCopies">5</span></div>
-                            <div><strong>Available:</strong> <span id="detailAvailableCopies">5</span></div>
-                            <div><strong>Publisher:</strong> <span id="detailPublisher">Publisher</span></div>
-                        </div>
-
-                        <div class="detail-actions">
-                            <button class="btn btn-primary" id="detailIssueBtn" onclick="issueCurrentDetailBook()">⚡ Issue This Book</button>
-                            <button class="btn btn-outline" onclick="closeDetailModal()">Close</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="stat-card">
+          <div class="stat-icon emerald">✅</div>
+          <div class="stat-details"><span class="stat-label">Available Copies</span><span class="stat-value" id="statAvailableCopies">--</span><span class="stat-sub">Ready to borrow</span></div>
         </div>
+        <div class="stat-card">
+          <div class="stat-icon blue">🔄</div>
+          <div class="stat-details"><span class="stat-label">Active Borrows</span><span class="stat-value" id="statActiveBorrows">--</span><span class="stat-sub">Currently on loan</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon purple">👥</div>
+          <div class="stat-details"><span class="stat-label">Registered Students</span><span class="stat-value" id="statTotalStudents">--</span><span class="stat-sub">Active members</span></div>
+        </div>
+      </div>
+
+      <!-- Dashboard Split: Books + Overdue Panel -->
+      <div class="dashboard-split">
+        <div class="content-panel">
+          <div class="panel-header">
+            <h2>🔥 Featured Books</h2>
+            <button class="btn btn-text btn-sm" onclick="switchTab('catalog')">View All →</button>
+          </div>
+          <div class="popular-books-scroll" id="popularBooksContainer">
+            <div class="loading-spinner">Loading books...</div>
+          </div>
+        </div>
+        <!-- RIGHT: Overdue Alerts -->
+        <div class="content-panel" id="overdueAlertPanel" style="border:2px solid rgba(239,68,68,.25);">
+          <div class="panel-header" style="border-bottom:1px solid #FEE2E2;padding-bottom:.9rem;margin-bottom:.9rem;">
+            <h3 style="color:#EF4444;">🚨 Overdue Alerts</h3>
+            <button class="btn btn-icon btn-sm" onclick="fetchOverdueData()" title="Refresh">🔄</button>
+          </div>
+          <div id="overdueAlertBody"><div class="loading-spinner">Loading...</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: CATALOG -->
+    <section id="viewCatalog" class="tab-view hidden">
+      <div class="section-header">
+        <div><h2>📚 Book Catalog</h2><p class="section-desc">Search, filter and manage all books in the library collection.</p></div>
+        <div class="header-actions">
+          <button class="btn btn-primary" id="addBookHeaderBtn" onclick="openAddBookModal()">➕ Add Book</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="catalogSearchInput" placeholder="Search by Title, Author or ISBN..." oninput="handleCatalogSearch()">
+        </div>
+        <div class="filter-controls">
+          <div class="control-group">
+            <label for="sortSelect">Sort:</label>
+            <select id="sortSelect" onchange="fetchCatalogBooks()">
+              <option value="title">Title A–Z</option>
+              <option value="author">Author A–Z</option>
+              <option value="availability">Availability</option>
+            </select>
+          </div>
+          <div class="view-toggle-btns">
+            <button class="btn btn-icon active" id="viewGridBtn" onclick="setCatalogView('grid')" title="Grid">🔲</button>
+            <button class="btn btn-icon" id="viewTableBtn" onclick="setCatalogView('table')" title="Table">☰</button>
+          </div>
+        </div>
+      </div>
+      <div id="catalogGridContainer" class="books-grid"></div>
+      <div id="catalogTableContainer" class="table-wrapper hidden">
+        <table class="modern-table">
+          <thead><tr><th>#</th><th>Title &amp; Author</th><th>Category</th><th>ISBN</th><th>Shelf</th><th>Copies</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="catalogTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 3: CIRCULATION -->
+    <section id="viewCirculation" class="tab-view hidden">
+      <div class="section-header">
+        <div><h2>🔄 Circulation &amp; Loans</h2><p class="section-desc">Issue books, process returns, and track overdue fines.</p></div>
+        <div class="header-actions">
+          <button class="btn btn-primary" onclick="openIssueModal()">⚡ Issue Book</button>
+        </div>
+      </div>
+      <div class="content-panel">
+        <div class="panel-header">
+          <h3>📋 Loan History</h3>
+          <button class="btn btn-outline btn-sm" onclick="fetchBorrowHistory()">🔄 Refresh</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="modern-table">
+            <thead><tr><th>ID</th><th>Reg No &amp; Name</th><th>Book Title</th><th>Issue Date</th><th>Due Date</th><th>Days Overdue</th><th>Return Date</th><th>Status</th><th>Fine (₹)</th><th>Action</th></tr></thead>
+            <tbody id="borrowHistoryTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: MEMBERS -->
+    <section id="viewStudents" class="tab-view hidden">
+      <div class="section-header">
+        <div><h2>👥 Student Directory</h2><p class="section-desc">Register students, manage accounts and monitor borrow limits.</p></div>
+        <div class="header-actions">
+          <button class="btn btn-primary" onclick="openRegisterModal()">➕ Register Student</button>
+        </div>
+      </div>
+      <div class="content-panel">
+        <div class="table-wrapper">
+          <table class="modern-table">
+            <thead><tr><th>#</th><th>Reg No</th><th>Name &amp; Email</th><th>Department</th><th>Year</th><th>Borrowed</th><th>Fines (₹)</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="studentsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: ANALYTICS -->
+    <section id="viewAnalytics" class="tab-view hidden">
+      <div class="section-header">
+        <div><h2>📈 Analytics &amp; Reports</h2><p class="section-desc">Visual insights into library usage and circulation statistics.</p></div>
+        <div class="header-actions"><button class="btn btn-outline" onclick="window.print()">🖨️ Print PDF</button></div>
+      </div>
+      <div class="report-grid">
+        <div class="report-card"><h3>📊 Book Category Distribution</h3><div class="canvas-container"><canvas id="webAnalyticsCanvas" width="600" height="280"></canvas></div></div>
+        <div class="report-card"><h3>⚡ System Info</h3>
+          <div class="telemetry-list">
+            <div class="tele-item"><span>Engine</span><strong>JDK HTTP + H2/SQLite</strong></div>
+            <div class="tele-item"><span>Sort Algorithm</span><strong>Merge Sort O(N log N)</strong></div>
+            <div class="tele-item"><span>Lookup Index</span><strong>HashMap O(1)</strong></div>
+            <div class="tele-item"><span>Search</span><strong>Binary Search O(log N)</strong></div>
+            <div class="tele-item"><span>Fine Policy</span><strong>₹0.50 / Overdue Day</strong></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+  <footer class="app-footer">© 2026 <strong>LibraAI System</strong> – Java Backend on port 8080</footer>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Login Modal -->
+<div id="loginModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="modal-header"><h3>🔑 Admin Login – LibraAI</h3><button class="close-btn" onclick="closeLoginModal()">✕</button></div>
+    <div class="modal-body">
+      <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="loginRole">Account Type</label>
+          <select id="loginRole" class="form-input">
+            <option value="ADMIN">Administrator (Librarian)</option>
+            <option value="STUDENT">Student Reader</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="loginUsername">Email / Register Number</label>
+          <input type="text" id="loginUsername" class="form-input" placeholder="janaselvarasu7@gmail.com" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="closeLoginModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Sign In →</button>
+        </div>
+      </form>
     </div>
+  </div>
+</div>
 
-    <!-- Toast Notification Box Container -->
-    <div id="toastContainer" class="toast-container"></div>
+<!-- Register Student Modal (Admin Only) -->
+<div id="registerModal" class="modal-overlay hidden">
+  <div class="modal-card modal-lg">
+    <div class="modal-header"><h3>➕ Register New Student <span style="font-size:.72rem;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:20px;">Admin Only</span></h3><button class="close-btn" onclick="closeRegisterModal()">✕</button></div>
+    <div class="modal-body">
+      <div style="background:#EDE9FE;border:1px solid #DDD6FE;border-radius:8px;padding:.7rem 1rem;margin-bottom:1rem;font-size:.83rem;color:#5B21B6;">
+        📋 Register numbers: <strong>2024100 – 2024150</strong> (unique per student)
+      </div>
+      <form id="registerForm" onsubmit="handleRegisterSubmit(event)">
+        <div class="form-grid">
+          <div class="form-group"><label>Register Number</label><input type="text" id="regCode" class="form-input" placeholder="e.g. 2024102" required></div>
+          <div class="form-group"><label>Full Name</label><input type="text" id="regFullName" class="form-input" placeholder="Student Full Name" required></div>
+          <div class="form-group"><label>Email</label><input type="email" id="regEmail" class="form-input" placeholder="student@college.edu" required></div>
+          <div class="form-group"><label>Phone</label><input type="tel" id="regPhone" class="form-input" placeholder="+91 9XXXXXXXXX"></div>
+          <div class="form-group"><label>Department</label><input type="text" id="regDept" class="form-input" placeholder="Computer Science" required></div>
+          <div class="form-group"><label>Year of Study</label><input type="number" id="regYear" class="form-input" min="1" max="6" value="1" required></div>
+          <div class="form-group full-width"><label>Temporary Password</label><input type="password" id="regPassword" class="form-input" placeholder="Set a login password" required></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="closeRegisterModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">✅ Register Student</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
-    <script src="js/app.js"></script>
+<!-- Add/Edit Book Modal -->
+<div id="bookModal" class="modal-overlay hidden">
+  <div class="modal-card modal-lg">
+    <div class="modal-header"><h3 id="bookModalTitle">➕ Add New Book</h3><button class="close-btn" onclick="closeBookModal()">✕</button></div>
+    <div class="modal-body">
+      <form id="bookForm" onsubmit="handleBookSubmit(event)">
+        <input type="hidden" id="bookIdInput">
+        <div class="form-grid">
+          <div class="form-group full-width"><label>Book Title</label><input type="text" id="bookTitleInput" class="form-input" placeholder="Introduction to Algorithms" required></div>
+          <div class="form-group"><label>Author(s)</label><input type="text" id="bookAuthorInput" class="form-input" placeholder="Thomas H. Cormen" required></div>
+          <div class="form-group"><label>ISBN-13</label><input type="text" id="bookIsbnInput" class="form-input" placeholder="978-0262033848" required></div>
+          <div class="form-group"><label>Publisher</label><input type="text" id="bookPublisherInput" class="form-input" placeholder="MIT Press"></div>
+          <div class="form-group"><label>Category</label><input type="text" id="bookCategoryInput" class="form-input" placeholder="Computer Science" required></div>
+          <div class="form-group"><label>Total Copies</label><input type="number" id="bookCopiesInput" class="form-input" min="1" value="5" required></div>
+          <div class="form-group"><label>Available Copies</label><input type="number" id="bookAvailableInput" class="form-input" min="0" value="5" required></div>
+          <div class="form-group"><label>Shelf Location</label><input type="text" id="bookShelfInput" class="form-input" placeholder="A-4"></div>
+          <div class="form-group"><label>Language</label><input type="text" id="bookLanguageInput" class="form-input" value="English"></div>
+          <div class="form-group full-width"><label>Description</label><textarea id="bookDescInput" class="form-input" rows="3" placeholder="Brief book summary..."></textarea></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="closeBookModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveBookBtn">Save Book</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Issue Book Modal -->
+<div id="issueModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="modal-header"><h3>⚡ Issue Book to Student</h3><button class="close-btn" onclick="closeIssueModal()">✕</button></div>
+    <div class="modal-body">
+      <form id="issueForm" onsubmit="handleIssueSubmit(event)">
+        <div class="form-group" style="margin-bottom:1rem;"><label>Select Student</label><select id="issueStudentSelect" class="form-input" required></select></div>
+        <div class="form-group" style="margin-bottom:1rem;"><label>Select Book</label><select id="issueBookSelect" class="form-input" required></select></div>
+        <div class="form-group"><label>Loan Duration (Days)</label><input type="number" id="issueLoanDays" class="form-input" min="1" max="60" value="14" required></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="closeIssueModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm &amp; Issue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Book Detail Modal -->
+<div id="detailModal" class="modal-overlay hidden">
+  <div class="modal-card modal-lg">
+    <div class="modal-header"><h3 id="detailBookTitle">Book Details</h3><button class="close-btn" onclick="closeDetailModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="book-detail-layout">
+        <div class="detail-cover-box">
+          <div class="book-cover-placeholder" id="detailCoverIcon">📖</div>
+          <div class="stock-pill" id="detailStockBadge">Available</div>
+        </div>
+        <div class="detail-info-box">
+          <h2 id="detailTitleText">Title</h2>
+          <p class="detail-author" id="detailAuthorText">by Author</p>
+          <div class="info-chips">
+            <span class="chip" id="detailCategoryChip">Category</span>
+            <span class="chip" id="detailIsbnChip">ISBN</span>
+            <span class="chip" id="detailLangChip">English</span>
+          </div>
+          <p class="detail-synopsis" id="detailDescText">Description...</p>
+          <div class="detail-grid">
+            <div><strong>Shelf:</strong> <span id="detailLocation">A-1</span></div>
+            <div><strong>Total Copies:</strong> <span id="detailTotalCopies">5</span></div>
+            <div><strong>Available:</strong> <span id="detailAvailableCopies">5</span></div>
+            <div><strong>Publisher:</strong> <span id="detailPublisher">N/A</span></div>
+          </div>
+          <div class="detail-actions">
+            <button class="btn btn-primary" id="detailIssueBtn" onclick="issueCurrentDetailBook()">⚡ Issue This Book</button>
+            <button class="btn btn-outline" onclick="closeDetailModal()">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer" class="toast-container"></div>
+<script src="js/app.js"></script>
 </body>
 </html>

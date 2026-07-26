@@ -52,6 +52,7 @@ public class LibraWebServer {
             server.createContext("/api/borrow/issue", new IssueBookHandler());
             server.createContext("/api/borrow/return", new ReturnBookHandler());
             server.createContext("/api/borrow/history", new BorrowHistoryHandler());
+            server.createContext("/api/borrow/overdue", new OverdueHandler());
             server.createContext("/api/students", new StudentsHandler());
             server.createContext("/api/students/status", new StudentStatusHandler());
             server.createContext("/api/health", new HealthHandler());
@@ -512,21 +513,62 @@ public class LibraWebServer {
                 history = controller.getAllBorrowHistory();
             }
 
+            long now = System.currentTimeMillis();
             StringBuilder sb = new StringBuilder("[");
             for (int i = 0; i < history.size(); i++) {
                 BorrowHistory bh = history.get(i);
+                long overdueDays = 0;
+                if (bh.getReturnDate() == null && bh.getDueDate() != null) {
+                    long diff = now - bh.getDueDate().getTime();
+                    if (diff > 0) overdueDays = diff / (1000L * 60 * 60 * 24);
+                }
                 sb.append(String.format(
-                        "{\"borrowId\":%d,\"studentId\":%d,\"studentName\":\"%s\",\"studentCode\":\"%s\",\"bookId\":%d,\"bookTitle\":\"%s\",\"isbn\":\"%s\",\"borrowDate\":\"%s\",\"dueDate\":\"%s\",\"returnDate\":\"%s\",\"status\":\"%s\",\"fineAmount\":%.2f,\"finePaid\":%b}",
+                        "{\"borrowId\":%d,\"studentId\":%d,\"studentName\":\"%s\",\"studentCode\":\"%s\",\"bookId\":%d,\"bookTitle\":\"%s\",\"isbn\":\"%s\",\"borrowDate\":\"%s\",\"dueDate\":\"%s\",\"returnDate\":\"%s\",\"status\":\"%s\",\"fineAmount\":%.2f,\"finePaid\":%b,\"overdueDays\":%d}",
                         bh.getBorrowId(), bh.getStudentId(), escapeJson(bh.getStudentName()), escapeJson(bh.getStudentCode()),
                         bh.getBookId(), escapeJson(bh.getBookTitle()), escapeJson(bh.getIsbn()),
                         bh.getBorrowDate() != null ? bh.getBorrowDate().toString() : "",
                         bh.getDueDate() != null ? bh.getDueDate().toString() : "",
                         bh.getReturnDate() != null ? bh.getReturnDate().toString() : "",
-                        escapeJson(bh.getStatus()), bh.getFineAmount(), bh.isFinePaid()
+                        escapeJson(bh.getStatus()), bh.getFineAmount(), bh.isFinePaid(), overdueDays
                 ));
                 if (i < history.size() - 1) sb.append(",");
             }
             sb.append("]");
+            sendJsonResponse(exchange, 200, sb.toString());
+        }
+    }
+
+    private class OverdueHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendOptionsResponse(exchange);
+                return;
+            }
+            List<BorrowHistory> allHistory = controller.getAllBorrowHistory();
+            long now = System.currentTimeMillis();
+            List<BorrowHistory> overdue = new ArrayList<>();
+            for (BorrowHistory bh : allHistory) {
+                if (bh.getReturnDate() == null && bh.getDueDate() != null && now > bh.getDueDate().getTime()) {
+                    overdue.add(bh);
+                }
+            }
+            StringBuilder sb = new StringBuilder("{\"overdueCount\":");
+            sb.append(overdue.size()).append(",\"overdueStudents\":[");
+            Set<String> seen = new java.util.LinkedHashSet<>();
+            List<String> studentEntries = new ArrayList<>();
+            for (BorrowHistory bh : overdue) {
+                if (!seen.contains(bh.getStudentCode())) {
+                    seen.add(bh.getStudentCode());
+                    long days = (now - bh.getDueDate().getTime()) / (1000L * 60 * 60 * 24);
+                    studentEntries.add(String.format(
+                        "{\"studentId\":%d,\"studentName\":\"%s\",\"studentCode\":\"%s\",\"bookTitle\":\"%s\",\"daysOverdue\":%d,\"fineAmount\":%.2f}",
+                        bh.getStudentId(), escapeJson(bh.getStudentName()), escapeJson(bh.getStudentCode()),
+                        escapeJson(bh.getBookTitle()), days, bh.getFineAmount()
+                    ));
+                }
+            }
+            sb.append(String.join(",", studentEntries)).append("]}");
             sendJsonResponse(exchange, 200, sb.toString());
         }
     }

@@ -166,10 +166,10 @@ public class SchemaInitializer {
         // Seed Admin user
         ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM Admins");
         if (rs.next() && rs.getInt(1) == 0) {
-            String defaultPasswordHash = PasswordUtils.hashPassword("admin123");
+            String defaultPasswordHash = PasswordUtils.hashPassword("janaSK@1123");
             stmt.executeUpdate("INSERT INTO Admins (username, password_hash, full_name, email, phone) " +
-                    "VALUES ('admin', '" + defaultPasswordHash + "', 'System Administrator', 'admin@libraai.org', '+1 800-555-0199')");
-            System.out.println(" Seeded default Admin user: admin / admin123");
+                    "VALUES ('janaselvarasu7@gmail.com', '" + defaultPasswordHash + "', 'Jana Selvarasu', 'janaselvarasu7@gmail.com', '+91 9000000000')");
+            System.out.println(" Seeded Admin: janaselvarasu7@gmail.com / janaSK@1123");
         }
 
         // Seed Categories
@@ -203,14 +203,14 @@ public class SchemaInitializer {
             System.out.println(" Seeded default Books (12 books total).");
         }
 
-        // Seed Sample Student
+        // Seed Sample Students (register numbers 2024100 - 2024150)
         rs = stmt.executeQuery("SELECT COUNT(*) FROM Students");
         if (rs.next() && rs.getInt(1) == 0) {
             String studentPassHash = PasswordUtils.hashPassword("student123");
             stmt.executeUpdate("INSERT INTO Students (student_code, full_name, email, password_hash, phone, department, year_of_study, max_borrow_limit, current_borrowed) VALUES " +
-                    "('STU-2026-001', 'Alex Mercer', 'alex.mercer@university.edu', '" + studentPassHash + "', '+1 555-0144', 'Computer Science', 3, 5, 2), " +
-                    "('STU-2026-002', 'Sophia Chen', 'sophia.chen@university.edu', '" + studentPassHash + "', '+1 555-0188', 'Data Analytics', 2, 5, 1)");
-            System.out.println(" Seeded sample Students: STU-2026-001 / student123");
+                    "('2024100', 'Alex Mercer', 'alex.mercer@college.edu', '" + studentPassHash + "', '+91 9000000001', 'Computer Science', 3, 5, 2), " +
+                    "('2024101', 'Sophia Chen', 'sophia.chen@college.edu', '" + studentPassHash + "', '+91 9000000002', 'Data Analytics', 2, 5, 1)");
+            System.out.println(" Seeded sample Students: 2024100, 2024101 / student123");
         }
 
         // Seed Sample Notifications

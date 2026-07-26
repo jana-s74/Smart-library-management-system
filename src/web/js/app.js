@@ -19,28 +19,37 @@ const API_BASE = window.location.origin.startsWith('file:') ? 'http://localhost:
 
 document.addEventListener("DOMContentLoaded", function () {
     console.log("🚀 Initializing LibraAI Web Application...");
-    
-    // Check local storage for persistent session
     const savedUser = localStorage.getItem("libraai_user");
     if (savedUser) {
         try {
             state.currentUser = JSON.parse(savedUser);
-            updateUserUI();
+            showDashboard();
         } catch (e) {
             localStorage.removeItem("libraai_user");
+            showLanding();
         }
+    } else {
+        showLanding();
     }
+});
 
-    // Initial Data Fetching
+function showLanding() {
+    document.getElementById('landingPage') && document.getElementById('landingPage').classList.remove('hidden');
+    document.getElementById('dashboardPage') && document.getElementById('dashboardPage').classList.add('hidden');
+}
+
+function showDashboard() {
+    document.getElementById('landingPage') && document.getElementById('landingPage').classList.add('hidden');
+    document.getElementById('dashboardPage') && document.getElementById('dashboardPage').classList.remove('hidden');
+    updateUserUI();
     checkHealth();
     fetchStats();
     fetchCatalogBooks();
     fetchBorrowHistory();
     fetchStudents();
-
-    // Render Initial Canvas Chart
+    fetchOverdueData();
     setTimeout(renderAnalyticsCanvasChart, 300);
-});
+}
 
 // ==================== API FETCHERS ====================
 
@@ -121,6 +130,52 @@ async function fetchStudents() {
         }
     } catch (err) {
         console.error("Failed to fetch students:", err);
+    }
+}
+
+async function fetchOverdueData() {
+    const panel = document.getElementById('overdueAlertBody');
+    if (!panel) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/borrow/overdue`);
+        if (!res.ok) throw new Error('API error');
+        const data = await res.json();
+        const count = data.overdueCount || 0;
+        const students = data.overdueStudents || [];
+        if (count === 0) {
+            panel.innerHTML = `<div style="text-align:center;padding:2rem;">
+                <div style="font-size:2.5rem;">✅</div>
+                <p style="color:#10B981;font-weight:600;margin-top:0.5rem;">All books returned!</p>
+                <p style="color:#6B7280;font-size:0.85rem;">No overdue students.</p>
+            </div>`;
+            document.getElementById('overdueAlertPanel') && (document.getElementById('overdueAlertPanel').style.borderColor = 'rgba(16,185,129,0.3)');
+        } else {
+            document.getElementById('overdueAlertPanel') && (document.getElementById('overdueAlertPanel').style.borderColor = 'rgba(239,68,68,0.5)');
+            panel.innerHTML = `
+                <div style="padding:0.5rem 1rem;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:0.75rem;">
+                    <strong style="color:#EF4444;font-size:1.1rem;">⚠️ ${count} overdue loan${count > 1 ? 's' : ''}</strong>
+                    <p style="color:#FCA5A5;font-size:0.8rem;margin:0;">Students who have not returned books</p>
+                </div>
+                ${students.map(s => `
+                    <div style="padding:0.75rem 1rem;border-bottom:1px solid rgba(255,255,255,0.06);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-weight:600;color:#F1F5F9;">${escapeHtml(s.studentName)}</div>
+                                <div style="font-size:0.78rem;color:#94A3B8;">Reg: ${escapeHtml(s.studentCode)}</div>
+                                <div style="font-size:0.8rem;color:#CBD5E1;margin-top:2px;">📖 ${escapeHtml(s.bookTitle)}</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="color:#EF4444;font-weight:700;font-size:0.9rem;">${s.daysOverdue} day${s.daysOverdue !== 1 ? 's' : ''}</div>
+                                <div style="color:#FCA5A5;font-size:0.78rem;">overdue</div>
+                                ${s.fineAmount > 0 ? `<div style="color:#F59E0B;font-size:0.78rem;font-weight:600;">₹${s.fineAmount.toFixed(2)} fine</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+    } catch (err) {
+        panel.innerHTML = `<div style="text-align:center;padding:1rem;color:#EF4444;">Unable to load overdue data.</div>`;
     }
 }
 
@@ -227,32 +282,37 @@ function renderBorrowHistoryTable() {
         return;
     }
 
-    tbody.innerHTML = state.borrowHistory.map(bh => `
-        <tr>
+    tbody.innerHTML = state.borrowHistory.map(bh => {
+        const isOverdue = bh.overdueDays && bh.overdueDays > 0;
+        return `
+        <tr style="${isOverdue ? 'background:rgba(239,68,68,0.05);' : ''}">
             <td>#${bh.borrowId}</td>
             <td>
                 <strong>${escapeHtml(bh.studentName || 'Student')}</strong><br>
-                <small style="color:#6B7280;">Code: ${escapeHtml(bh.studentCode || 'N/A')}</small>
+                <small style="color:#6B7280;">Reg: ${escapeHtml(bh.studentCode || 'N/A')}</small>
             </td>
             <td><strong>${escapeHtml(bh.bookTitle || 'Book')}</strong></td>
             <td>${formatDate(bh.borrowDate)}</td>
             <td>${formatDate(bh.dueDate)}</td>
-            <td>${bh.returnDate ? formatDate(bh.returnDate) : '-'}</td>
+            <td style="color:${isOverdue ? '#EF4444' : '#10B981'};font-weight:600;">
+                ${isOverdue ? `⚠️ ${bh.overdueDays} day${bh.overdueDays !== 1 ? 's' : ''}` : (bh.returnDate ? '—' : '✅ On time')}
+            </td>
+            <td>${bh.returnDate ? formatDate(bh.returnDate) : '<span style="color:#9CA3AF;">—</span>'}</td>
             <td>
                 <span class="status-tag ${bh.status ? bh.status.toLowerCase() : 'borrowed'}">
                     ${escapeHtml(bh.status || 'BORROWED')}
                 </span>
             </td>
             <td style="color:${bh.fineAmount > 0 ? '#EF4444' : '#10B981'};font-weight:600;">
-                $${(bh.fineAmount || 0).toFixed(2)}
+                ₹${(bh.fineAmount || 0).toFixed(2)}
             </td>
             <td>
                 ${bh.status === 'BORROWED' || bh.status === 'OVERDUE' ? `
-                    <button class="btn btn-primary btn-sm" onclick="processReturnBook(${bh.borrowId}, ${bh.studentId}, ${bh.bookId})">Return Book</button>
-                ` : `<span style="color:#9CA3AF;font-size:0.8rem;">Completed</span>`}
+                    <button class="btn btn-primary btn-sm" onclick="processReturnBook(${bh.borrowId}, ${bh.studentId}, ${bh.bookId})">Return</button>
+                ` : `<span style="color:#9CA3AF;font-size:0.8rem;">Returned</span>`}
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
 }
 
 function renderStudentsTable() {
@@ -325,7 +385,7 @@ function switchTab(tabName) {
     if (activeView) activeView.classList.remove("hidden");
 
     // Refresh Tab Content
-    if (tabName === 'dashboard') fetchStats();
+    if (tabName === 'dashboard') { fetchStats(); fetchOverdueData(); }
     if (tabName === 'catalog') fetchCatalogBooks();
     if (tabName === 'circulation') fetchBorrowHistory();
     if (tabName === 'students') fetchStudents();
@@ -359,7 +419,6 @@ async function handleLoginSubmit(e) {
     const role = document.getElementById("loginRole").value;
     const username = document.getElementById("loginUsername").value.trim();
     const password = document.getElementById("loginPassword").value.trim();
-
     try {
         const res = await fetch(`${API_BASE}/api/auth/login`, {
             method: 'POST',
@@ -370,20 +429,22 @@ async function handleLoginSubmit(e) {
         if (data.success) {
             state.currentUser = data.user;
             localStorage.setItem("libraai_user", JSON.stringify(data.user));
-            updateUserUI();
             closeLoginModal();
-            showToast(`Welcome back, ${data.user.fullName}!`, 'success');
-            fetchCatalogBooks();
-            fetchStudents();
+            showToast(`Welcome back, ${data.user.fullName}! 🎉`, 'success');
+            showDashboard();
         } else {
-            showToast(data.message || 'Login failed', 'error');
+            showToast(data.message || 'Invalid credentials', 'error');
         }
     } catch (err) {
-        showToast('Login request failed. Server error.', 'error');
+        showToast('Server error. Make sure backend is running.', 'error');
     }
 }
 
 function openRegisterModal() {
+    if (!isAdmin()) {
+        showToast('Only admin can register students. Please login as admin first.', 'error');
+        return;
+    }
     document.getElementById("registerModal").classList.remove("hidden");
 }
 
@@ -394,6 +455,12 @@ function closeRegisterModal() {
 async function handleRegisterSubmit(e) {
     e.preventDefault();
     const studentCode = document.getElementById("regCode").value.trim();
+    // Validate register number is between 2024100 and 2024150
+    const regNum = parseInt(studentCode, 10);
+    if (isNaN(regNum) || regNum < 2024100 || regNum > 2024150) {
+        showToast('Register number must be between 2024100 and 2024150.', 'error');
+        return;
+    }
     const fullName = document.getElementById("regFullName").value.trim();
     const email = document.getElementById("regEmail").value.trim();
     const phone = document.getElementById("regPhone").value.trim();
@@ -409,18 +476,11 @@ async function handleRegisterSubmit(e) {
         });
         const data = await res.json();
         if (data.success) {
-            showToast('Registration successful! Opening sign-in...', 'success');
+            showToast(`✅ Student ${fullName} (Reg: ${studentCode}) registered successfully!`, 'success');
             closeRegisterModal();
+            document.getElementById('registerForm').reset();
             fetchStudents();
-            
-            // Auto open login modal and prefill username & password for instant login
-            setTimeout(() => {
-                openLoginModal();
-                document.getElementById("loginRole").value = "STUDENT";
-                document.getElementById("loginUsername").value = studentCode || email;
-                document.getElementById("loginPassword").value = password;
-                document.getElementById("loginPassword").focus();
-            }, 400);
+            fetchStats();
         } else {
             showToast(data.message || 'Registration failed.', 'error');
         }
@@ -431,23 +491,22 @@ async function handleRegisterSubmit(e) {
 
 
 function updateUserUI() {
-    const loggedOutView = document.getElementById("loggedOutView");
     const loggedInView = document.getElementById("loggedInView");
     const addBookHeaderBtn = document.getElementById("addBookHeaderBtn");
-
+    const dashName = document.getElementById('dashWelcomeName');
     if (state.currentUser) {
-        loggedOutView.classList.add("hidden");
-        loggedInView.classList.remove("hidden");
-        document.getElementById("userFullName").innerText = state.currentUser.fullName || state.currentUser.username;
-        document.getElementById("userRoleBadge").innerText = state.currentUser.role || 'STUDENT';
-        document.getElementById("userAvatar").innerText = (state.currentUser.fullName || 'U').charAt(0).toUpperCase();
-
-        if (addBookHeaderBtn) {
-            addBookHeaderBtn.classList.toggle("hidden", !isAdmin());
-        }
+        if (loggedInView) loggedInView.classList.remove("hidden");
+        const name = state.currentUser.fullName || state.currentUser.username || 'Admin';
+        const nameEl = document.getElementById("userFullName");
+        const roleEl = document.getElementById("userRoleBadge");
+        const avatarEl = document.getElementById("userAvatar");
+        if (nameEl) nameEl.innerText = name;
+        if (roleEl) roleEl.innerText = state.currentUser.role || 'STUDENT';
+        if (avatarEl) avatarEl.innerText = name.charAt(0).toUpperCase();
+        if (dashName) dashName.innerText = name.split(' ')[0];
+        if (addBookHeaderBtn) addBookHeaderBtn.classList.toggle("hidden", !isAdmin());
     } else {
-        loggedOutView.classList.remove("hidden");
-        loggedInView.classList.add("hidden");
+        if (loggedInView) loggedInView.classList.add("hidden");
         if (addBookHeaderBtn) addBookHeaderBtn.classList.add("hidden");
     }
 }
@@ -455,10 +514,8 @@ function updateUserUI() {
 function logoutUser() {
     state.currentUser = null;
     localStorage.removeItem("libraai_user");
-    updateUserUI();
-    showToast('Logged out successfully', 'success');
-    renderCatalogBooks();
-    renderStudentsTable();
+    showToast('Logged out. Goodbye! 👋', 'success');
+    showLanding();
 }
 
 function isAdmin() {
