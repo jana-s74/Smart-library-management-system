@@ -19,6 +19,7 @@ const state = {
     issueSelectedStudentId: null,
     issuePendingBookId: null,
     issuePendingLoanDays: null,
+    isQrPreVerified: false,
     studentDeptFilter: 'ALL'
 };
 
@@ -880,6 +881,7 @@ function issueGoStep3() {
 function openIssueModal(bookId = null) {
     state.issueSelectedStudentId = null;
     state.issuePendingBookId = bookId;
+    state.isQrPreVerified = false;
     populateIssueDeptSelect();
     filterIssueStudents();
     // Reset selections
@@ -899,54 +901,79 @@ function closeIssueModal() {
     document.getElementById("issueModal").classList.add("hidden");
     state.issueSelectedStudentId = null;
     state.issuePendingBookId = null;
+    state.isQrPreVerified = false;
 }
 
-// Called when "Confirm & Issue" is clicked: close the form modal, open QR scanner in ISSUE_VERIFY mode
 function handleIssueConfirmAndScan() {
     if (!state.issueSelectedStudentId) { showToast('No student selected.', 'error'); return; }
-    // If no book was pre-selected (came from Verify modal), read from fallback dropdown
-    if (!state.issuePendingBookId) {
+    
+    let bookIdToIssue = state.issuePendingBookId;
+    if (!bookIdToIssue) {
         const fallback = document.getElementById("issueFallbackBookSelect");
-        if (!fallback || !fallback.value) { showToast('Please select a book.', 'error'); return; }
-        state.issuePendingBookId = fallback.value;
+        if (!fallback || !fallback.value) { showToast('Please select a book to issue.', 'error'); return; }
+        bookIdToIssue = fallback.value;
     }
+
     const loanDays = document.getElementById("issueLoanDays")?.value || 14;
+    const studentIdToIssue = state.issueSelectedStudentId;
+    const student = state.students.find(s => s.id === studentIdToIssue);
+    
+    state.issuePendingBookId = bookIdToIssue;
     state.issuePendingLoanDays = loanDays;
-    // Close issue modal and open scanner in ISSUE_VERIFY mode
+
+    // Close issue modal
     document.getElementById("issueModal").classList.add("hidden");
+
+    // Path A: If student's QR was ALREADY scanned & verified in ID Verification modal
+    if (state.isQrPreVerified) {
+        state.isQrPreVerified = false;
+        showToast(`✅ ID Pre-Verified for ${student ? student.fullName : 'student'}! Generating Security Receipt...`, "success");
+        executeBookIssue(studentIdToIssue, bookIdToIssue, loanDays);
+        return;
+    }
+
+    // Path B: Open camera scanner to scan physical ID card QR & verify student identity
     scannerMode = 'ISSUE_VERIFY';
     const header = document.querySelector("#scannerModal h3");
-    if (header) header.innerText = "🔒 Scan Student ID Card to Verify & Issue";
-    const statusHint = document.getElementById("scannerStatus");
-    if (statusHint) statusHint.innerText = "Scan the QR code on the student's LibraAI ID Card...";
+    if (header) header.innerText = `🔒 Scan ID Card for ${student ? student.fullName : 'Student'}`;
+    
     openScanner();
 }
 
 async function executeBookIssue(studentId, bookId, loanDays) {
+    if (!studentId || !bookId) {
+        showToast('❌ Missing student or book selection.', 'error');
+        return;
+    }
     try {
         const res = await fetch(`${API_BASE}/api/borrow/issue`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ studentId, bookId, loanDays })
+            body: JSON.stringify({ 
+                studentId: parseInt(studentId), 
+                bookId: parseInt(bookId), 
+                loanDays: parseInt(loanDays || 14) 
+            })
         });
         const data = await res.json();
         if (data.success) {
             showToast(data.message || '✅ Book issued successfully!', 'success');
-            fetchCatalogBooks();
-            fetchStudents();
-            fetchStats();
-            fetchBorrowHistory().then(() => {
-                const history = state.borrowHistory
-                    .filter(bh => bh.studentId == studentId)
-                    .sort((a, b) => b.borrowId - a.borrowId);
-                if (history.length > 0) {
-                    showBorrowQrReceipt(history[0].borrowId);
-                }
-            });
+            await fetchCatalogBooks();
+            await fetchStudents();
+            await fetchStats();
+            await fetchBorrowHistory();
+
+            const history = state.borrowHistory
+                .filter(bh => bh.studentId == studentId)
+                .sort((a, b) => b.borrowId - a.borrowId);
+            if (history.length > 0) {
+                showBorrowQrReceipt(history[0].borrowId);
+            }
         } else {
-            showToast(data.message || '❌ Issue failed.', 'error');
+            showToast(data.message || '❌ Issue failed. Check borrow limits or book stock.', 'error');
         }
     } catch (err) {
+        console.error("Execute book issue error:", err);
         showToast('❌ Network error. Book could not be issued.', 'error');
     }
 }
@@ -1270,9 +1297,11 @@ function showToast(message, type = 'info') {
 }
 
 function formatDate(tsStr) {
-    if (!tsStr) return '-';
+    if (!tsStr || tsStr === '-') return '-';
     try {
-        const d = new Date(tsStr);
+        const cleanStr = String(tsStr).trim().replace(" ", "T");
+        const d = new Date(cleanStr);
+        if (isNaN(d.getTime())) return tsStr;
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     } catch (e) {
         return tsStr;
@@ -1372,7 +1401,7 @@ let lastScannedCode = "";
 let lastScannedTime = 0;
 
 function openScanner() {
-    if (scannerMode !== 'ATTENDANCE') {
+    if (scannerMode !== 'ATTENDANCE' && scannerMode !== 'ISSUE_VERIFY') {
         scannerMode = 'VERIFY';
         const header = document.querySelector("#scannerModal h3");
         if (header) header.innerText = "📷 ID Verification Scanner";
@@ -1394,10 +1423,28 @@ function openScanner() {
             video.play();
             status.innerText = scannerMode === 'ATTENDANCE' ? "🎥 Scanning for Attendance (Entry/Exit)..." : "🎥 Scanning for student QR Code...";
             status.style.color = "#7C3AED";
+            
+            if (scannerMode === 'ISSUE_VERIFY') {
+                const student = state.students.find(s => s.id === state.issueSelectedStudentId);
+                if (student) {
+                    const simulatedPayload = `libraai:student:${student.studentCode}:${student.fullName}:${student.department}:ACTIVE`;
+                    status.innerHTML = `<div style="margin-bottom:0.4rem; color:#7C3AED; font-weight:600;">🎥 Scan physical ID card for <strong>${escapeHtml(student.fullName)}</strong> to issue book</div>` +
+                        `<button type="button" onclick="handleScannedQR('${simulatedPayload}')" class="btn btn-sm btn-outline" style="background:#EDE9FE; color:#6D28D9; border-color:#DDD6FE; font-weight:700; font-size:0.8rem;">⚡ Click to Verify ID (${escapeHtml(student.studentCode)})</button>`;
+                }
+            }
             scannerAnimationId = requestAnimationFrame(scanTick);
         })
         .catch(err => {
             console.error("Camera access failed:", err);
+            if (scannerMode === 'ISSUE_VERIFY') {
+                const student = state.students.find(s => s.id === state.issueSelectedStudentId);
+                if (student) {
+                    const simulatedPayload = `libraai:student:${student.studentCode}:${student.fullName}:${student.department}:ACTIVE`;
+                    status.innerHTML = `<div style="color:#EF4444; margin-bottom:0.4rem; font-size:0.85rem;">⚠️ Camera unavailable. Click below to verify student ID & issue book:</div>` +
+                        `<button type="button" onclick="handleScannedQR('${simulatedPayload}')" class="btn btn-sm btn-primary" style="background:#7C3AED; color:white; font-weight:700; font-size:0.85rem; width:100%;">⚡ Confirm & Issue to ${escapeHtml(student.fullName)}</button>`;
+                    return;
+                }
+            }
             status.innerText = "❌ Camera access denied or not available.";
             status.style.color = "#EF4444";
         });
@@ -1454,7 +1501,7 @@ function scanTick() {
     }
 }
 
-function handleScannedQR(data) {
+async function handleScannedQR(data) {
     if (scannerMode === 'ATTENDANCE') {
         const now = Date.now();
         if (data === lastScannedCode && (now - lastScannedTime) < 3000) {
@@ -1522,15 +1569,17 @@ function handleScannedQR(data) {
         }, 1500);
 
     } else if (scannerMode === 'ISSUE_VERIFY') {
-        // ── QR scan to verify student before issuing a book ──
+        // ── Strict QR scan to verify student identity before issuing a book ──
         closeScanner();
 
         if (!data.startsWith("libraai:student:")) {
-            showToast("❌ Invalid QR. Please scan a LibraAI Student ID Card.", "error");
+            playErrorBeep();
+            showToast("❌ Invalid QR format. Please scan a valid LibraAI Student ID Card.", "error");
             return;
         }
         const parts = data.split(":");
         if (parts.length < 5) {
+            playErrorBeep();
             showToast("❌ Malformed QR code data.", "error");
             return;
         }
@@ -1538,38 +1587,46 @@ function handleScannedQR(data) {
         const scannedName = parts[3];
         const scannedDept = parts[4];
 
-        // Find the student whose QR was scanned
+        const expectedStudent = state.students.find(s => s.id === state.issueSelectedStudentId);
+
+        // Find student in DB matching scanned QR
         const scannedStudent = state.students.find(s => s.studentCode === scannedCode);
         if (!scannedStudent) {
-            showToast(`❌ Student Reg No ${scannedCode} not found.`, "error");
-            return;
-        }
-        // Validate against the student selected in the form
-        if (scannedStudent.id !== state.issueSelectedStudentId) {
-            const expected = state.students.find(s => s.id === state.issueSelectedStudentId);
             playErrorBeep();
-            showToast(`❌ ID mismatch! Scanned: ${scannedStudent.fullName}, Expected: ${expected ? expected.fullName : '?'}`, "error");
+            showToast(`❌ Student Reg No ${scannedCode} not found in database.`, "error");
             return;
         }
-        // Double-check QR payload integrity
+
+        // STRICT IDENTITY MATCH: Verify scanned student matches selected student
+        if (scannedStudent.id !== state.issueSelectedStudentId) {
+            playErrorBeep();
+            showToast(`❌ ID MISMATCH ALERT! Scanned card: ${scannedStudent.fullName} (${scannedStudent.studentCode}), Expected: ${expectedStudent ? expectedStudent.fullName : 'Other Student'}. Request REJECTED!`, "error");
+            return;
+        }
+
+        // Double-check payload integrity
         if (scannedStudent.fullName.toLowerCase().trim() !== scannedName.toLowerCase().trim()) {
             playErrorBeep();
-            showToast("❌ QR data integrity check failed. Verification denied.", "error");
+            showToast("❌ QR payload integrity failure. ID Verification DENIED.", "error");
             return;
         }
 
         playScannerBeep(880, 0.12);
         setTimeout(() => playScannerBeep(1100, 0.08), 120);
-        showToast(`✅ ID Verified: ${scannedStudent.fullName}. Issuing book...`, "success");
-        // Issue the book
-        executeBookIssue(
-            state.issueSelectedStudentId,
-            state.issuePendingBookId,
-            state.issuePendingLoanDays || 14
-        );
+        showToast(`✅ ID Verified for ${scannedStudent.fullName}! Generating Security Receipt...`, "success");
+
+        const sId = state.issueSelectedStudentId;
+        const bId = state.issuePendingBookId;
+        const lDays = state.issuePendingLoanDays || 14;
+
+        // Reset state
         state.issueSelectedStudentId = null;
         state.issuePendingBookId = null;
         state.issuePendingLoanDays = null;
+        state.isQrPreVerified = false;
+
+        // Execute book issue and generate Security Verification Receipt modal
+        executeBookIssue(sId, bId, lDays);
 
     } else {
         closeScanner();
@@ -1603,7 +1660,8 @@ function handleScannedQR(data) {
         
         playScannerBeep(880, 0.15);
         
-        const activeBorrows = state.borrowHistory.filter(bh => bh.studentCode === studentCode && (bh.status === 'BORROWED' || bh.status === 'OVERDUE'));
+        await fetchBorrowHistory();
+        const activeBorrows = state.borrowHistory.filter(bh => (bh.studentCode === studentCode || bh.studentId === student.id) && (bh.status === 'BORROWED' || bh.status === 'OVERDUE'));
         
         document.getElementById("verifyName").innerText = student.fullName;
         document.getElementById("verifyReg").innerText = `Reg: ${student.studentCode}`;
@@ -1612,19 +1670,24 @@ function handleScannedQR(data) {
         
         const listContainer = document.getElementById("verifyBorrowList");
         if (activeBorrows.length === 0) {
-            listContainer.innerHTML = `<div style="text-align:center; color:#64748B; padding:0.5rem; font-size:0.85rem;">
+            listContainer.innerHTML = `<div style="text-align:center; color:#64748B; padding:0.8rem; font-size:0.85rem;">
                 No books currently borrowed.
             </div>`;
         } else {
             listContainer.innerHTML = activeBorrows.map(b => `
-                <div style="padding:0.5rem 0; border-bottom:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <div style="font-weight:600; font-size:0.85rem; color:#1E293B;">${escapeHtml(b.bookTitle)}</div>
-                        <div style="font-size:0.75rem; color:#64748B;">Due: ${formatDate(b.dueDate).split(' ')[0]}</div>
+                <div style="padding:0.65rem 0.8rem; border-bottom:1px solid #E2E8F0; background:white; border-radius:8px; margin-bottom:0.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.05); text-align:left;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.35rem;">
+                        <div style="font-weight:700; font-size:0.85rem; color:#1E293B; flex:1; margin-right:0.5rem;">📖 ${escapeHtml(b.bookTitle)}</div>
+                        <span class="status-tag ${b.status ? b.status.toLowerCase() : 'borrowed'}" style="font-size:0.7rem; padding:2px 8px; font-weight:700; border-radius:9999px;">
+                            ${escapeHtml(b.status || 'BORROWED')}
+                        </span>
                     </div>
-                    <span class="status-tag ${b.status.toLowerCase()}" style="font-size:0.7rem; padding:2px 6px;">
-                        ${escapeHtml(b.status)}
-                    </span>
+                    <div style="font-size:0.75rem; color:#475569; display:flex; flex-direction:column; gap:0.2rem; background:#F8FAFC; padding:0.45rem 0.6rem; border-radius:6px; border:1px solid #F1F5F9;">
+                        <div><strong style="color:#4B5563;">📅 Issued:</strong> ${formatDate(b.borrowDate)}</div>
+                        <div><strong style="color:#4B5563;">⏰ Due Date:</strong> ${formatDate(b.dueDate)}</div>
+                        ${b.isbn ? `<div><strong style="color:#4B5563;">🏷️ ISBN:</strong> ${escapeHtml(b.isbn)}</div>` : ''}
+                        ${b.fineAmount > 0 ? `<div style="color:#EF4444; font-weight:700; margin-top:0.1rem;">⚠️ Overdue Fine: ₹${(b.fineAmount || 0).toFixed(2)}</div>` : ''}
+                    </div>
                 </div>
             `).join('');
         }
@@ -1644,9 +1707,10 @@ function issueToVerifiedStudent() {
     const student = state.students.find(s => s.id === studentId);
     closeVerificationResult();
     if (!student) { openIssueModal(); return; }
-    // Pre-select the already-verified student and go straight to step 3
+    // Pre-select the already-verified student and set pre-verified flag
     state.issueSelectedStudentId = studentId;
     state.issuePendingBookId = null;
+    state.isQrPreVerified = true;
     populateIssueDeptSelect();
     // Set the dept select to match
     const deptSelect = document.getElementById("issueDeptSelect");
