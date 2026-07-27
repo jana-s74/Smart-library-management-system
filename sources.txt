@@ -1,62 +1,65 @@
-D:\Library management system\src\Main.java
-D:\Library management system\src\controller\LibraryController.java
-D:\Library management system\src\dao\BookDAO.java
-D:\Library management system\src\dao\BorrowDAO.java
-D:\Library management system\src\dao\CategoryDAO.java
-D:\Library management system\src\dao\NotificationDAO.java
-D:\Library management system\src\dao\ReservationDAO.java
-D:\Library management system\src\dao\ReviewDAO.java
-D:\Library management system\src\dao\UserDAO.java
-D:\Library management system\src\database\DatabaseConnection.java
-D:\Library management system\src\database\InMemoryDatabaseDriver.java
-D:\Library management system\src\database\SchemaInitializer.java
-D:\Library management system\src\model\Achievement.java
-D:\Library management system\src\model\Book.java
-D:\Library management system\src\model\BorrowHistory.java
-D:\Library management system\src\model\Category.java
-D:\Library management system\src\model\FineHistory.java
-D:\Library management system\src\model\Notification.java
-D:\Library management system\src\model\Reservation.java
-D:\Library management system\src\model\Review.java
-D:\Library management system\src\model\Student.java
-D:\Library management system\src\model\User.java
-D:\Library management system\src\service\AnalyticsService.java
-D:\Library management system\src\service\AuthService.java
-D:\Library management system\src\service\BookService.java
-D:\Library management system\src\service\BorrowService.java
-D:\Library management system\src\service\StudentService.java
-D:\Library management system\src\ui\auth\LoginFrame.java
-D:\Library management system\src\ui\auth\RegisterDialog.java
-D:\Library management system\src\ui\books\AddEditBookDialog.java
-D:\Library management system\src\ui\books\BookDetailDialog.java
-D:\Library management system\src\ui\books\BookManagementPanel.java
-D:\Library management system\src\ui\components\AuthorAvatarCard.java
-D:\Library management system\src\ui\components\HeroBannerCard.java
-D:\Library management system\src\ui\components\ModernButton.java
-D:\Library management system\src\ui\components\ModernCard.java
-D:\Library management system\src\ui\components\ModernSidebar.java
-D:\Library management system\src\ui\components\ModernTable.java
-D:\Library management system\src\ui\components\ModernTextField.java
-D:\Library management system\src\ui\components\PopularBookCard.java
-D:\Library management system\src\ui\components\RightWidgetsPanel.java
-D:\Library management system\src\ui\components\SimpleChartPanel.java
-D:\Library management system\src\ui\components\StatCard.java
-D:\Library management system\src\ui\components\StatPillCard.java
-D:\Library management system\src\ui\components\TopHeaderBar.java
-D:\Library management system\src\ui\dashboard\AdminDashboardFrame.java
-D:\Library management system\src\ui\dashboard\StudentDashboardFrame.java
-D:\Library management system\src\ui\notifications\NotificationsPanel.java
-D:\Library management system\src\ui\reports\ReportsPanel.java
-D:\Library management system\src\ui\students\StudentManagementPanel.java
-D:\Library management system\src\utils\FineCalculator.java
-D:\Library management system\src\utils\PasswordUtils.java
-D:\Library management system\src\utils\QRCodeGenerator.java
-D:\Library management system\src\utils\ReportExporter.java
-D:\Library management system\src\utils\ThemeManager.java
-D:\Library management system\src\utils\dsa\ActionStack.java
-D:\Library management system\src\utils\dsa\BinarySearchUtil.java
-D:\Library management system\src\utils\dsa\BookHashMapIndex.java
-D:\Library management system\src\utils\dsa\MergeSortUtil.java
-D:\Library management system\src\utils\dsa\WaitingQueue.java
-D:\Library management system\src\web\server\LibraWebServer.java
-
+./src/CheckHash.java
+./src/Main.java
+./src/VerifyDb.java
+./src/controller/LibraryController.java
+./src/dao/AttendanceDAO.java
+./src/dao/BookDAO.java
+./src/dao/BorrowDAO.java
+./src/dao/CategoryDAO.java
+./src/dao/NotificationDAO.java
+./src/dao/ReservationDAO.java
+./src/dao/ReviewDAO.java
+./src/dao/UserDAO.java
+./src/database/DatabaseConnection.java
+./src/database/InMemoryDatabaseDriver.java
+./src/database/SchemaInitializer.java
+./src/model/Achievement.java
+./src/model/AttendanceLog.java
+./src/model/Book.java
+./src/model/BorrowHistory.java
+./src/model/Category.java
+./src/model/FineHistory.java
+./src/model/Notification.java
+./src/model/Reservation.java
+./src/model/Review.java
+./src/model/Student.java
+./src/model/User.java
+./src/service/AnalyticsService.java
+./src/service/AuthService.java
+./src/service/BookService.java
+./src/service/BorrowService.java
+./src/service/StudentService.java
+./src/ui/auth/LoginFrame.java
+./src/ui/auth/RegisterDialog.java
+./src/ui/books/AddEditBookDialog.java
+./src/ui/books/BookDetailDialog.java
+./src/ui/books/BookManagementPanel.java
+./src/ui/components/AuthorAvatarCard.java
+./src/ui/components/HeroBannerCard.java
+./src/ui/components/ModernButton.java
+./src/ui/components/ModernCard.java
+./src/ui/components/ModernSidebar.java
+./src/ui/components/ModernTable.java
+./src/ui/components/ModernTextField.java
+./src/ui/components/PopularBookCard.java
+./src/ui/components/RightWidgetsPanel.java
+./src/ui/components/SimpleChartPanel.java
+./src/ui/components/StatCard.java
+./src/ui/components/StatPillCard.java
+./src/ui/components/TopHeaderBar.java
+./src/ui/dashboard/AdminDashboardFrame.java
+./src/ui/dashboard/StudentDashboardFrame.java
+./src/ui/notifications/NotificationsPanel.java
+./src/ui/reports/ReportsPanel.java
+./src/ui/students/StudentManagementPanel.java
+./src/utils/FineCalculator.java
+./src/utils/PasswordUtils.java
+./src/utils/QRCodeGenerator.java
+./src/utils/ReportExporter.java
+./src/utils/ThemeManager.java
+./src/utils/dsa/ActionStack.java
+./src/utils/dsa/BinarySearchUtil.java
+./src/utils/dsa/BookHashMapIndex.java
+./src/utils/dsa/MergeSortUtil.java
+./src/utils/dsa/WaitingQueue.java
+./src/web/server/LibraWebServer.java

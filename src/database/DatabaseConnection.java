@@ -30,12 +30,33 @@ public class DatabaseConnection {
         // 1. Try MySQL JDBC Driver
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            Connection conn = DriverManager.getConnection(MYSQL_URL, MYSQL_USER, MYSQL_PASS);
-            System.out.println(" Connected successfully to MySQL Database!");
-            isSQLiteMode = false;
-            return conn;
-        } catch (Exception e) {
-            // MySQL driver or connection not present
+            Connection conn = null;
+            try {
+                conn = DriverManager.getConnection(MYSQL_URL, MYSQL_USER, MYSQL_PASS);
+            } catch (SQLException e) {
+                // If database does not exist, try to connect to server and create it
+                String serverUrl = "jdbc:mysql://localhost:3306/?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
+                try (Connection serverConn = DriverManager.getConnection(serverUrl, MYSQL_USER, MYSQL_PASS);
+                     java.sql.Statement stmt = serverConn.createStatement()) {
+                    stmt.executeUpdate("CREATE DATABASE IF NOT EXISTS libraai_db");
+                    conn = DriverManager.getConnection(MYSQL_URL, MYSQL_USER, MYSQL_PASS);
+                } catch (SQLException ex) {
+                    System.err.println("⚠️ MySQL Database Connection Failed!");
+                    System.err.println("   Error Message: " + ex.getMessage());
+                    System.err.println("   Please ensure MySQL is running on localhost:3306 and that the credentials match your MySQL Workbench:");
+                    System.err.println("   URL:  " + MYSQL_URL);
+                    System.err.println("   User: " + MYSQL_USER);
+                    System.err.println("   Pass: " + MYSQL_PASS);
+                    System.err.println("   (You can change these credentials in DatabaseConnection.java)");
+                }
+            }
+            if (conn != null) {
+                System.out.println(" Connected successfully to MySQL Database!");
+                isSQLiteMode = false;
+                return conn;
+            }
+        } catch (ClassNotFoundException e) {
+            System.err.println("⚠️ MySQL JDBC Driver not found in classpath.");
         }
 
         // 2. Try SQLite Driver

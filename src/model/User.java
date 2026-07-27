@@ -11,6 +11,7 @@ public class User {
     private String role; // ADMIN or STUDENT
     private String profilePicPath;
     private Timestamp createdAt;
+    private String passwordHash;
 
     public User() {}
 
@@ -48,4 +49,7 @@ public class User {
 
     public Timestamp getCreatedAt() { return createdAt; }
     public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }
+
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 }

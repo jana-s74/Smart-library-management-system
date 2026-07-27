@@ -32,7 +32,8 @@ public class Main {
             webServer.start();
         }, "LibraWebServer-Thread").start();
 
-        // 3. Launch Swing GUI on EDT (Optional Desktop Interface)
+        // 3. Launch Swing GUI on EDT (Optional Desktop Interface) - Disabled as requested to use Web interface
+        /*
         if (!GraphicsEnvironment.isHeadless()) {
             SwingUtilities.invokeLater(() -> {
                 LoginFrame loginFrame = new LoginFrame();
@@ -40,6 +41,8 @@ public class Main {
                 System.out.println(" Desktop GUI initialized successfully.");
             });
         }
+        */
+        System.out.println(" Desktop GUI disabled. Web Server mode is active.");
     }
 }
 

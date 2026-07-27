@@ -128,8 +128,9 @@
     <nav class="nav-tabs">
       <button class="nav-pill active" id="tabDashboardBtn" onclick="switchTab('dashboard')"><span>📊</span>Dashboard</button>
       <button class="nav-pill" id="tabCatalogBtn" onclick="switchTab('catalog')"><span>📖</span>Catalog</button>
-      <button class="nav-pill" id="tabCirculationBtn" onclick="switchTab('circulation')"><span>🔄</span>Circulation</button>
-      <button class="nav-pill" id="tabStudentsBtn" onclick="switchTab('students')"><span>👥</span>Members</button>
+      <button class="nav-pill" id="tabCirculationBtn" onclick="switchTab('circulation')"><span>🔄</span>Barrowing</button>
+      <button class="nav-pill" id="tabStudentsBtn" onclick="switchTab('students')"><span>👥</span>Students</button>
+      <button class="nav-pill" id="tabAttendanceBtn" onclick="switchTab('attendance')"><span>🕒</span>Attendance</button>
       <button class="nav-pill" id="tabAnalyticsBtn" onclick="switchTab('analytics')"><span>📈</span>Analytics</button>
     </nav>
     <div class="user-action-area">
@@ -264,11 +265,18 @@
       </div>
     </section>
 
-    <!-- TAB 4: MEMBERS -->
+    <!-- TAB 4: STUDENTS -->
     <section id="viewStudents" class="tab-view hidden">
       <div class="section-header">
         <div><h2>👥 Student Directory</h2><p class="section-desc">Register students, manage accounts and monitor borrow limits.</p></div>
-        <div class="header-actions">
+        <div class="header-actions" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="studentSearchInput" placeholder="🔍 Search Reg No or Name..." class="form-input" oninput="filterStudentsByDept()" style="padding:0.4rem 0.8rem;font-size:0.83rem;width:220px;background:#fff;border:1.5px solid var(--border);border-radius:var(--r-sm);color:var(--text);outline:none;">
+          <select id="studentDeptFilter" class="form-input" onchange="filterStudentsByDept()" style="padding:0.4rem 0.8rem;font-size:0.83rem;background:#fff;border:1.5px solid var(--border);border-radius:var(--r-sm);color:var(--text);outline:none;">
+            <option value="ALL">All Departments</option>
+            <option value="AI & DS">AI & DS</option>
+            <option value="EEE">Electrical & Electronics (EEE)</option>
+            <option value="Mechanical">Mechanical</option>
+          </select>
           <button class="btn btn-primary" onclick="openRegisterModal()">➕ Register Student</button>
         </div>
       </div>
@@ -277,6 +285,75 @@
           <table class="modern-table">
             <thead><tr><th>#</th><th>Reg No</th><th>Name &amp; Email</th><th>Department</th><th>Year</th><th>Borrowed</th><th>Fines (₹)</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="studentsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: ATTENDANCE -->
+    <section id="viewAttendance" class="tab-view hidden">
+      <div class="section-header">
+        <div>
+          <h2>🕒 Attendance Management</h2>
+          <p class="section-desc">Track and scan student entries and exits in real-time using physical ID cards.</p>
+        </div>
+        <div class="header-actions" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="attendanceSearchInput" placeholder="🔍 Search Reg No or Name..." class="form-input" oninput="filterAttendanceLogs()" style="padding:0.4rem 0.8rem;font-size:0.83rem;width:220px;background:#fff;border:1.5px solid var(--border);border-radius:var(--r-sm);color:var(--text);outline:none;">
+          <select id="attendanceDeptFilter" class="form-input" onchange="filterAttendanceLogs()" style="padding:0.4rem 0.8rem;font-size:0.83rem;background:#fff;border:1.5px solid var(--border);border-radius:var(--r-sm);color:var(--text);outline:none;">
+            <option value="ALL">All Departments</option>
+            <option value="AI & DS">AI & DS</option>
+            <option value="EEE">Electrical & Electronics (EEE)</option>
+            <option value="Mechanical">Mechanical</option>
+          </select>
+          <button class="btn btn-primary" onclick="openAttendanceScanner()" style="display:flex;align-items:center;gap:0.4rem;">
+            <span>📷</span> Open Entry/Exit Scanner
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats Grid for Attendance -->
+      <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: 1.5rem;">
+        <div class="stat-card" style="border-left: 4px solid #10B981;">
+          <div class="stat-icon emerald">🟢</div>
+          <div class="stat-details">
+            <span class="stat-label">Currently inside Library</span>
+            <span class="stat-value" id="attendanceCurrentlyInsideCount">0</span>
+            <span class="stat-sub">Active visitors right now</span>
+          </div>
+        </div>
+        <div class="stat-card" style="border-left: 4px solid #3B82F6;">
+          <div class="stat-icon blue">📅</div>
+          <div class="stat-details">
+            <span class="stat-label">Total Visits Today</span>
+            <span class="stat-value" id="attendanceTodayVisitsCount">0</span>
+            <span class="stat-sub">Total check-ins logged today</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logs panel -->
+      <div class="content-panel">
+        <div class="panel-header">
+          <h3>📋 Live Attendance History</h3>
+          <button class="btn btn-outline btn-sm" onclick="fetchAttendanceLogs()">🔄 Refresh List</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Register No</th>
+                <th>Student Name</th>
+                <th>Department</th>
+                <th>Check-In Time</th>
+                <th>Check-Out Time</th>
+                <th>Duration</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceTableBody">
+              <tr><td colspan="8" style="text-align:center;color:var(--text-light);padding:2rem;">No logs found. Open the Entry/Exit scanner to log attendance.</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -292,11 +369,34 @@
         <div class="report-card"><h3>📊 Book Category Distribution</h3><div class="canvas-container"><canvas id="webAnalyticsCanvas" width="600" height="280"></canvas></div></div>
         <div class="report-card"><h3>⚡ System Info</h3>
           <div class="telemetry-list">
-            <div class="tele-item"><span>Engine</span><strong>JDK HTTP + H2/SQLite</strong></div>
+            <div class="tele-item"><span>Engine</span><strong>JDK HTTP + MySQL</strong></div>
             <div class="tele-item"><span>Sort Algorithm</span><strong>Merge Sort O(N log N)</strong></div>
             <div class="tele-item"><span>Lookup Index</span><strong>HashMap O(1)</strong></div>
             <div class="tele-item"><span>Search</span><strong>Binary Search O(log N)</strong></div>
             <div class="tele-item"><span>Fine Policy</span><strong>₹0.50 / Overdue Day</strong></div>
+          </div>
+        </div>
+        
+        <div class="report-card" style="grid-column: span 2; margin-top: 1.5rem; background: white; border-radius: var(--r-md); box-shadow: var(--shadow); border: 1px solid var(--border);">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid var(--border); padding-bottom: 0.8rem; margin-bottom: 1rem;">
+            <h3 style="margin:0; font-family:'Outfit'; font-size:1.2rem; color:var(--text); display:flex; align-items:center; gap:0.5rem;">🥇 Top 10 Library Visitors <span style="font-size:0.8rem; background:#EDE9FE; color:#7C3AED; padding:2px 8px; border-radius:9999px; font-weight:600;">Time Spent</span></h3>
+            <button class="btn btn-outline btn-sm" onclick="fetchTopVisitors()" style="font-size:0.75rem; padding:4px 8px;">🔄 Refresh Leaderboard</button>
+          </div>
+          <div class="table-wrapper">
+            <table class="modern-table" style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="text-align:left;">
+                  <th style="width: 80px;">Rank</th>
+                  <th>Student Info</th>
+                  <th>Department</th>
+                  <th>Total Time Spent</th>
+                  <th style="width: 40%;">Activity Index</th>
+                </tr>
+              </thead>
+              <tbody id="topVisitorsTableBody">
+                <tr><td colspan="5" style="text-align:center; color:#64748B; padding:2rem;">Loading attendance metrics...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -344,16 +444,23 @@
     <div class="modal-header"><h3>➕ Register New Student <span style="font-size:.72rem;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:20px;">Admin Only</span></h3><button class="close-btn" onclick="closeRegisterModal()">✕</button></div>
     <div class="modal-body">
       <div style="background:#EDE9FE;border:1px solid #DDD6FE;border-radius:8px;padding:.7rem 1rem;margin-bottom:1rem;font-size:.83rem;color:#5B21B6;">
-        📋 Register numbers: <strong>2024100 – 2024150</strong> (unique per student)
+        📋 Register format: 12-digit number starting with <strong>721424</strong> (e.g. AI&DS: 721424243xxx, EEE: 721424105xxx, Mechanical: 721424114xxx)
       </div>
       <form id="registerForm" onsubmit="handleRegisterSubmit(event)">
         <div class="form-grid">
-          <div class="form-group"><label>Register Number</label><input type="text" id="regCode" class="form-input" placeholder="e.g. 2024102" required></div>
+          <div class="form-group"><label>Register Number</label><input type="text" id="regCode" class="form-input" placeholder="e.g. 721424243052" pattern="721424[0-9]{6}" title="Must be a 12-digit registration number starting with 721424" required></div>
           <div class="form-group"><label>Full Name</label><input type="text" id="regFullName" class="form-input" placeholder="Student Full Name" required></div>
           <div class="form-group"><label>Email</label><input type="email" id="regEmail" class="form-input" placeholder="student@college.edu" required></div>
           <div class="form-group"><label>Phone</label><input type="tel" id="regPhone" class="form-input" placeholder="+91 9XXXXXXXXX"></div>
-          <div class="form-group"><label>Department</label><input type="text" id="regDept" class="form-input" placeholder="Computer Science" required></div>
-          <div class="form-group"><label>Year of Study</label><input type="number" id="regYear" class="form-input" min="1" max="6" value="1" required></div>
+          <div class="form-group">
+            <label>Department</label>
+            <select id="regDept" class="form-input" required>
+              <option value="AI & DS">AI & DS</option>
+              <option value="EEE">EEE</option>
+              <option value="Mechanical">Mechanical</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Year of Study</label><input type="number" id="regYear" class="form-input" min="1" max="6" value="3" required></div>
           <div class="form-group full-width"><label>Temporary Password</label><input type="password" id="regPassword" class="form-input" placeholder="Set a login password" required></div>
         </div>
         <div class="modal-actions">
@@ -365,7 +472,54 @@
   </div>
 </div>
 
-<!-- Add/Edit Book Modal -->
+<!-- QR Code Viewer Modal -->
+<div id="qrModal" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:400px; text-align:center;">
+    <div class="modal-header">
+      <h3 id="qrModalTitle">Security QR Verification</h3>
+      <button class="close-btn" onclick="closeQrModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:1.5rem;">
+      <!-- ID Card Style -->
+      <div id="qrIdCardView" class="hidden" style="background:linear-gradient(135deg, #7C3AED, #0EA5E9); border-radius:16px; padding:1.5rem; color:#fff; box-shadow:0 10px 25px rgba(124,58,237,0.3); margin-bottom:1.5rem; text-align:center;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:0.5rem; font-family:'Outfit', sans-serif;">
+          <strong style="font-size:1rem; letter-spacing:1px;">LIBRAAI DIGITAL ID</strong>
+          <span style="font-size:0.7rem; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:12px; font-weight:600;">STUDENT</span>
+        </div>
+        <div style="background:#fff; padding:10px; border-radius:12px; display:inline-block; margin-bottom:1rem; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+          <img id="qrIdCardImage" src="" alt="Student QR Code" style="width:160px; height:160px; display:block;">
+        </div>
+        <h3 id="qrIdName" style="margin:0; font-size:1.2rem; font-weight:700; font-family:'Outfit';">Name</h3>
+        <p id="qrIdCode" style="margin:0.25rem 0 0.5rem; font-size:0.85rem; opacity:0.9; font-family:monospace;">Reg: 721424243052</p>
+        <div style="display:flex; justify-content:space-between; font-size:0.78rem; opacity:0.8; margin-top:0.5rem; border-top:1px solid rgba(255,255,255,0.2); padding-top:0.5rem;">
+          <span id="qrIdDept">Dept: AI & DS</span>
+          <span id="qrIdYear">Year: 3</span>
+        </div>
+      </div>
+
+      <!-- Receipt Style -->
+      <div id="qrReceiptView" class="hidden" style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:16px; padding:1.5rem; color:#1E293B; box-shadow:var(--shadow-sm); margin-bottom:1.5rem; text-align:center;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:1rem; border-bottom:1px solid #E2E8F0; padding-bottom:0.5rem;">
+          <strong style="font-size:1rem; color:#7C3AED; font-family:'Outfit';">LOAN SECURITY TOKEN</strong>
+          <span id="qrReceiptStatus" style="font-size:0.7rem; background:#EDE9FE; color:#7C3AED; padding:2px 8px; border-radius:12px; font-weight:600;">ACTIVE</span>
+        </div>
+        <div style="background:#fff; padding:10px; border-radius:12px; display:inline-block; margin-bottom:1rem; border:1px solid #E2E8F0; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
+          <img id="qrReceiptImage" src="" alt="Receipt QR Code" style="width:160px; height:160px; display:block;">
+        </div>
+        <h3 id="qrReceiptBookTitle" style="margin:0; font-size:1.05rem; font-weight:700; color:#0F172A;">Book Title</h3>
+        <p id="qrReceiptStudent" style="margin:0.25rem 0 0.75rem; font-size:0.82rem; color:#64748B;">Issued to: Student Name</p>
+        <div id="qrReceiptDetails" style="font-size:0.8rem; text-align:left; background:#F1F5F9; padding:0.75rem; border-radius:8px; display:flex; flex-direction:column; gap:0.35rem; border:1px solid #E2E8F0;">
+          <!-- Will hold date, duration, etc. -->
+        </div>
+      </div>
+
+      <div style="display:flex; gap:0.5rem;">
+        <button class="btn btn-outline" onclick="closeQrModal()" style="flex:1;">Close</button>
+        <button class="btn btn-primary" onclick="printQrContent()" style="flex:1;">🖨️ Print</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="bookModal" class="modal-overlay hidden">
   <div class="modal-card modal-lg">
     <div class="modal-header"><h3 id="bookModalTitle">➕ Add New Book</h3><button class="close-btn" onclick="closeBookModal()">✕</button></div>
@@ -395,18 +549,91 @@
 
 <!-- Issue Book Modal -->
 <div id="issueModal" class="modal-overlay hidden">
-  <div class="modal-card">
-    <div class="modal-header"><h3>⚡ Issue Book to Student</h3><button class="close-btn" onclick="closeIssueModal()">✕</button></div>
-    <div class="modal-body">
-      <form id="issueForm" onsubmit="handleIssueSubmit(event)">
-        <div class="form-group" style="margin-bottom:1rem;"><label>Select Student</label><select id="issueStudentSelect" class="form-input" required></select></div>
-        <div class="form-group" style="margin-bottom:1rem;"><label>Select Book</label><select id="issueBookSelect" class="form-input" required></select></div>
-        <div class="form-group"><label>Loan Duration (Days)</label><input type="number" id="issueLoanDays" class="form-input" min="1" max="60" value="14" required></div>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-outline" onclick="closeIssueModal()">Cancel</button>
-          <button type="submit" class="btn btn-primary">Confirm &amp; Issue</button>
+  <div class="modal-card" style="max-width: 520px;">
+    <div class="modal-header" style="background: linear-gradient(135deg, #7C3AED, #4F46E5); color: white;">
+      <h3>⚡ Issue Book to Student</h3>
+      <button class="close-btn" onclick="closeIssueModal()" style="color:white;">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 1.5rem;">
+
+      <!-- Step indicator -->
+      <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1.5rem;">
+        <div id="issueStep1Dot" style="width:28px;height:28px;border-radius:50%;background:#7C3AED;color:white;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">1</div>
+        <div style="flex:1;height:2px;background:#E2E8F0;" id="issueStepLine1"></div>
+        <div id="issueStep2Dot" style="width:28px;height:28px;border-radius:50%;background:#E2E8F0;color:#64748B;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">2</div>
+        <div style="flex:1;height:2px;background:#E2E8F0;" id="issueStepLine2"></div>
+        <div id="issueStep3Dot" style="width:28px;height:28px;border-radius:50%;background:#E2E8F0;color:#64748B;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">3</div>
+      </div>
+
+      <!-- STEP 1: Select Department -->
+      <div id="issueStep1">
+        <p style="font-weight:700; font-family:'Outfit'; font-size:1rem; color:#1E293B; margin-bottom:1rem;">👥 Step 1: Select Department</p>
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label>Department</label>
+          <select id="issueDeptSelect" class="form-input" onchange="onIssueDeptChange()" required>
+            <option value="">-- Choose Department --</option>
+          </select>
         </div>
-      </form>
+        <div style="display:flex; justify-content:flex-end;">
+          <button type="button" class="btn btn-primary" onclick="issueGoStep2()" style="min-width:120px;">Next →</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Select Student -->
+      <div id="issueStep2" class="hidden">
+        <p style="font-weight:700; font-family:'Outfit'; font-size:1rem; color:#1E293B; margin-bottom:1rem;">🎓 Step 2: Select Student</p>
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label>Filter by Name / Reg No</label>
+          <input type="text" id="issueStudentSearch" class="form-input" placeholder="Type name or register number..." oninput="filterIssueStudents()" autocomplete="off">
+        </div>
+        <div id="issueStudentList" style="max-height:220px; overflow-y:auto; border:1px solid #E2E8F0; border-radius:8px; background:#F8FAFC;">
+          <!-- filled by JS -->
+        </div>
+        <div id="issueSelectedStudentBadge" class="hidden" style="margin-top:0.75rem; padding:0.6rem 0.8rem; background:#EDE9FE; border-radius:8px; display:flex; align-items:center; justify-content:space-between;">
+          <span style="font-weight:600; color:#5B21B6; font-size:0.88rem;" id="issueSelectedStudentLabel">—</span>
+          <button type="button" onclick="clearIssueStudentSelection()" style="background:none;border:none;color:#7C3AED;cursor:pointer;font-size:1rem;">✕</button>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:1rem;">
+          <button type="button" class="btn btn-outline" onclick="issueGoStep(1)">← Back</button>
+          <button type="button" class="btn btn-primary" id="issueStep2NextBtn" onclick="issueGoStep3()" style="min-width:120px;" disabled>Next →</button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Confirm Book + Duration, then Verify QR -->
+      <div id="issueStep3" class="hidden">
+        <p style="font-weight:700; font-family:'Outfit'; font-size:1rem; color:#1E293B; margin-bottom:1rem;">📋 Step 3: Confirm &amp; Duration</p>
+
+        <!-- Selected Student -->
+        <div id="issueStep3StudentInfo" style="background:linear-gradient(135deg,#7C3AED,#6D28D9);border-radius:10px;padding:0.8rem 1rem;color:white;margin-bottom:0.75rem;">
+          <p style="margin:0;font-weight:700;font-size:0.95rem;" id="issueStep3StudentName">Student</p>
+          <p style="margin:0;font-size:0.8rem;opacity:0.85;" id="issueStep3StudentReg">Reg No</p>
+        </div>
+
+        <!-- Selected Book (read-only display) -->
+        <div id="issueStep3BookInfo" style="background:#F0FDF4; border:1.5px solid #86EFAC; border-radius:10px; padding:0.75rem 1rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.75rem;">
+          <span style="font-size:1.5rem;">📖</span>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:700; color:#166534; font-size:0.9rem;" id="issueStep3BookTitle">Book Title</div>
+            <div style="font-size:0.75rem; color:#4ADE80; margin-top:0.1rem;" id="issueStep3BookMeta">Author · Copies</div>
+          </div>
+          <span style="background:#22C55E; color:white; font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:9999px;">Selected</span>
+        </div>
+
+        <div class="form-group" style="margin-bottom:1.5rem;">
+          <label>Loan Duration (Days)</label>
+          <input type="number" id="issueLoanDays" class="form-input" min="1" max="60" value="14" required>
+        </div>
+        <div style="background:#FEF3C7; border-left:3px solid #F59E0B; padding:0.6rem 0.8rem; border-radius:6px; margin-bottom:1.2rem; font-size:0.82rem; color:#92400E;">
+          🔒 <strong>ID Verification Required</strong> — Clicking "Confirm &amp; Issue" will open the QR scanner to verify the student's ID card before the book is issued.
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <button type="button" class="btn btn-outline" onclick="issueGoStep(2)">← Back</button>
+          <button type="button" class="btn btn-primary" onclick="handleIssueConfirmAndScan()" id="confirmIssueBtn" style="background:linear-gradient(135deg,#7C3AED,#4F46E5); min-width:150px;">
+            🔒 Confirm &amp; Issue
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -446,7 +673,176 @@
   </div>
 </div>
 
+<!-- Scanner Modal (Admin Only) -->
+<div id="scannerModal" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width: 450px;">
+    <div class="modal-header">
+      <h3>📷 ID Verification Scanner</h3>
+      <button class="close-btn" onclick="closeScanner()">✕</button>
+    </div>
+    <div class="modal-body" style="text-align: center; padding: 1.5rem;">
+      <div style="background:#EDE9FE; border:1px solid #DDD6FE; border-radius:8px; padding:.7rem 1rem; margin-bottom:1rem; font-size:.83rem; color:#5B21B6; text-align: left;">
+        🎥 Place the student's physical ID card (containing the QR code) in front of your camera. Make sure the QR code is clearly visible and well-lit.
+      </div>
+      <div class="scanner-container" style="position: relative; width: 100%; max-width: 360px; margin: 0 auto; aspect-ratio: 4/3; background: #1E293B; border-radius: 12px; overflow: hidden; border: 3px solid #7C3AED; box-shadow: 0 10px 25px rgba(124,58,237,0.2);">
+        <!-- Camera Video Feed -->
+        <video id="scannerVideo" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+        <!-- Overlay Guide Box -->
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60%; height: 60%; border: 2px dashed #10B981; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); pointer-events: none;">
+          <!-- Scanning line animation -->
+          <div style="position: absolute; width: 100%; height: 3px; background: #10B981; top: 0; left: 0; animation: scanAnim 2s linear infinite; box-shadow: 0 0 8px #10B981;"></div>
+        </div>
+      </div>
+      <div id="scannerStatus" style="margin-top: 1rem; font-weight: 600; color: #64748B; font-size: 0.9rem;">
+        Waiting for camera permissions...
+      </div>
+      <div class="modal-actions" style="margin-top: 1.5rem; justify-content: center;">
+        <button class="btn btn-outline" onclick="closeScanner()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Verification Result Modal -->
+<div id="verificationResultModal" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width: 450px;">
+    <div class="modal-header" style="background: #10B981; color: white;">
+      <h3>✅ ID Verified Successfully</h3>
+      <button class="close-btn" onclick="closeVerificationResult()" style="color: white;">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 1.5rem; text-align: center;">
+      <!-- Student Card -->
+      <div style="background: linear-gradient(135deg, #10B981, #059669); border-radius: 12px; padding: 1.2rem; color: white; margin-bottom: 1.5rem; text-align: left; box-shadow: 0 4px 15px rgba(16,185,129,0.2);">
+        <h3 id="verifyName" style="margin: 0; font-size: 1.3rem; font-family: 'Outfit'; font-weight: 700;">JANA S</h3>
+        <p id="verifyReg" style="margin: 0.2rem 0 0.5rem; font-size: 0.9rem; opacity: 0.9; font-family: monospace;">Reg: 721424243052</p>
+        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 0.5rem; margin-top: 0.5rem;">
+          <span id="verifyDept">Dept: AI & DS</span>
+          <span id="verifyYear">Year: 3</span>
+        </div>
+      </div>
+      
+      <!-- Borrow Status Header -->
+      <h4 style="text-align: left; margin-bottom: 0.5rem; color: #1E293B; font-family: 'Outfit'; font-size: 1rem;">📚 Active Borrow Records</h4>
+      
+      <!-- Borrow List Container -->
+      <div id="verifyBorrowList" style="text-align: left; max-height: 200px; overflow-y: auto; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.75rem; background: #F8FAFC; margin-bottom: 1.5rem;">
+        <!-- Dynamically filled -->
+      </div>
+      
+      <div style="display: flex; gap: 0.5rem;">
+        <button class="btn btn-outline" style="flex: 1;" onclick="closeVerificationResult()">Close</button>
+        <button class="btn btn-primary" style="flex: 1; background: #10B981; border-color: #10B981; color: white;" id="verifyIssueBtn" onclick="issueToVerifiedStudent()">⚡ Issue Book</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Student Detail Modal -->
+<div id="studentDetailModal" class="modal-overlay hidden">
+  <div class="modal-card modal-lg">
+    <div class="modal-header" style="background: linear-gradient(135deg, #7C3AED, #6D28D9); color: white;">
+      <h3>🎓 Student Profile & Record</h3>
+      <button class="close-btn" onclick="closeStudentDetailModal()" style="color: white;">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 1.5rem;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+        
+        <!-- Column 1: Personal Details -->
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1.2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <h4 style="color: #7C3AED; margin-top: 0; margin-bottom: 0.8rem; font-family: 'Outfit'; font-size: 1.1rem; border-bottom: 2px solid #EDE9FE; padding-bottom: 0.4rem;">👤 Personal Info</h4>
+          <table style="width: 100%; font-size: 0.88rem; border-collapse: collapse; line-height: 1.8;">
+            <tr><td style="color: #64748B; width: 40%; font-weight: 500;">Full Name:</td><td id="sdFullName" style="color: #0F172A; font-weight: 600;">-</td></tr>
+            <tr><td style="color: #64748B; font-weight: 500;">Register No:</td><td id="sdRegCode" style="color: #0F172A; font-family: monospace; font-weight: 600;">-</td></tr>
+            <tr><td style="color: #64748B; font-weight: 500;">Department:</td><td id="sdDept" style="color: #0F172A; font-weight: 600;">-</td></tr>
+            <tr><td style="color: #64748B; font-weight: 500;">Year of Study:</td><td id="sdYear" style="color: #0F172A; font-weight: 600;">-</td></tr>
+            <tr><td style="color: #64748B; font-weight: 500;">Phone:</td><td id="sdPhone" style="color: #0F172A; font-weight: 600;">-</td></tr>
+            <tr><td style="color: #64748B; font-weight: 500;">Account Status:</td><td><span id="sdStatus" class="status-tag active" style="font-size: 0.72rem; padding: 2px 6px;">-</span></td></tr>
+          </table>
+        </div>
+
+        <!-- Column 2: Account & Login Details -->
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1.2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          <h4 style="color: #7C3AED; margin-top: 0; margin-bottom: 0.8rem; font-family: 'Outfit'; font-size: 1.1rem; border-bottom: 2px solid #EDE9FE; padding-bottom: 0.4rem;">🔑 Login & Access Info</h4>
+          <table style="width: 100%; font-size: 0.88rem; border-collapse: collapse; line-height: 1.8;">
+            <tr><td style="color: #64748B; width: 40%; font-weight: 500;">Login ID (Email):</td><td id="sdLoginEmail" style="color: #0F172A; font-weight: 600; word-break: break-all;">-</td></tr>
+            <tr><td style="color: #64748B; font-weight: 500;">Login ID (Reg):</td><td id="sdLoginCode" style="color: #0F172A; font-family: monospace; font-weight: 600;">-</td></tr>
+            <tr><td style="color: #64748B; font-weight: 500;">Account Role:</td><td style="color: #7C3AED; font-weight: 700;">STUDENT READER</td></tr>
+            <tr>
+              <td style="color: #64748B; font-weight: 500; vertical-align: top;">Password Hash:</td>
+              <td style="word-break: break-all; font-family: monospace; font-size: 0.75rem; color: #475569; line-height: 1.4;" id="sdPasswordHash">-</td>
+            </tr>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- Section: Library Borrowed Details -->
+      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1.2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+        <h4 style="color: #7C3AED; margin-top: 0; margin-bottom: 0.8rem; font-family: 'Outfit'; font-size: 1.1rem; border-bottom: 2px solid #EDE9FE; padding-bottom: 0.4rem; display: flex; justify-content: space-between; align-items: center;">
+          <span>📚 Library Borrowing History</span>
+          <span id="sdBorrowLimits" style="font-size: 0.8rem; color: #64748B; font-weight: normal;">Borrowed: 0/5</span>
+        </h4>
+        <div style="max-height: 220px; overflow-y: auto; border: 1px solid #E2E8F0; border-radius: 8px; background: white;">
+          <table style="width: 100%; font-size: 0.82rem; border-collapse: collapse; text-align: left;" class="modern-table">
+            <thead>
+              <tr style="background: #F1F5F9;">
+                <th style="padding: 8px 12px;">Book Title</th>
+                <th style="padding: 8px 12px;">Borrow Date</th>
+                <th style="padding: 8px 12px;">Due Date</th>
+                <th style="padding: 8px 12px;">Return Date</th>
+                <th style="padding: 8px 12px;">Status</th>
+                <th style="padding: 8px 12px;">Fine (₹)</th>
+              </tr>
+            </thead>
+            <tbody id="sdBorrowHistoryTableBody">
+              <!-- Filled dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+        <button class="btn btn-outline" onclick="closeStudentDetailModal()" style="min-width: 100px;">Close Profile</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes scanAnim {
+  0% { top: 0%; }
+  50% { top: 100%; }
+  100% { top: 0%; }
+}
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: #10B981;
+  border-radius: 50%;
+  position: relative;
+}
+.status-dot.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: #10B981;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+</style>
+
 <div id="toastContainer" class="toast-container"></div>
+<script src="js/qrcode.min.js"></script>
+<script src="js/jsQR.min.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

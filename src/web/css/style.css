@@ -295,6 +295,7 @@ select.form-input{cursor:pointer;}
 .toast.success{background:#fff;border-left-color:var(--green);color:var(--text);}
 .toast.error{background:#fff;border-left-color:var(--red);color:var(--text);}
 .toast.info{background:#fff;border-left-color:var(--sky);color:var(--text);}
+.toast.warning{background:#FFFBEB;border-left-color:var(--amber);color:#92400E;}
 @keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
 
 .loading-spinner{text-align:center;padding:2rem;color:var(--text3);font-size:.88rem;}
@@ -302,4 +303,38 @@ select.form-input{cursor:pointer;}
 
 /* Dashboard split layout */
 .dashboard-split{display:grid;grid-template-columns:1fr 340px;gap:1.5rem;align-items:start;}
-@media(max-width:900px){.dashboard-split{grid-template-columns:1fr;}}
+
+/* Media Print for QR Codes and Receipts */
+@media print {
+  body > * {
+    display: none !important;
+  }
+  #qrModal {
+    display: flex !important;
+    position: static !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+  #qrModal .modal-card {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  #qrModal .modal-header, 
+  #qrModal .modal-body > div:not(#qrIdCardView):not(#qrReceiptView),
+  #qrModal .close-btn,
+  #qrModal button {
+    display: none !important;
+  }
+  #qrIdCardView, #qrReceiptView {
+    display: block !important;
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    margin: 0 auto !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+

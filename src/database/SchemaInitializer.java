@@ -2,10 +2,7 @@ package database;
 
 import utils.PasswordUtils;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 
 public class SchemaInitializer {
 
@@ -152,6 +149,15 @@ public class SchemaInitializer {
                     "unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
                     ")");
 
+            // 12. Attendance Table
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Attendance (" +
+                    "attendance_id INTEGER PRIMARY KEY " + autoInc + ", " +
+                    "student_id INT NOT NULL, " +
+                    "check_in_time TIMESTAMP NULL, " +
+                    "check_out_time TIMESTAMP NULL, " +
+                    "status VARCHAR(10) NOT NULL DEFAULT 'IN'" +
+                    ")");
+
             System.out.println(" Database tables verified / created.");
 
             // Seed Initial Data if empty
@@ -203,14 +209,130 @@ public class SchemaInitializer {
             System.out.println(" Seeded default Books (12 books total).");
         }
 
-        // Seed Sample Students (register numbers 2024100 - 2024150)
+        // Seed Sample Students
         rs = stmt.executeQuery("SELECT COUNT(*) FROM Students");
-        if (rs.next() && rs.getInt(1) == 0) {
+        if (rs.next() && rs.getInt(1) < 180) {
+            stmt.executeUpdate("DELETE FROM Students");
             String studentPassHash = PasswordUtils.hashPassword("student123");
-            stmt.executeUpdate("INSERT INTO Students (student_code, full_name, email, password_hash, phone, department, year_of_study, max_borrow_limit, current_borrowed) VALUES " +
-                    "('2024100', 'Alex Mercer', 'alex.mercer@college.edu', '" + studentPassHash + "', '+91 9000000001', 'Computer Science', 3, 5, 2), " +
-                    "('2024101', 'Sophia Chen', 'sophia.chen@college.edu', '" + studentPassHash + "', '+91 9000000002', 'Data Analytics', 2, 5, 1)");
-            System.out.println(" Seeded sample Students: 2024100, 2024101 / student123");
+            java.util.List<String[]> seedStudents = new java.util.ArrayList<>();
+            
+            String[][] aidsStudents = {
+                {"721424243001", "AARISH A R", "AI & DS"},
+                {"721424243002", "ABITH GODSON T A", "AI & DS"},
+                {"721424243003", "ADARSH K", "AI & DS"},
+                {"721424243004", "ADARSH R", "AI & DS"},
+                {"721424243005", "AKSHAYA M", "AI & DS"},
+                {"721424243006", "AKSHITHVYAN S", "AI & DS"},
+                {"721424243007", "AMARNATHAN S", "AI & DS"},
+                {"721424243008", "ANSREE R", "AI & DS"},
+                {"721424243009", "ANUDEEP S", "AI & DS"},
+                {"721424243010", "ARCHANA B KRISHNA", "AI & DS"},
+                {"721424243011", "ARJUN DEVADAS", "AI & DS"},
+                {"721424243012", "ARJUN S", "AI & DS"},
+                {"721424243013", "ARUMBUNATHAN S", "AI & DS"},
+                {"721424243014", "ATHULRAG P P", "AI & DS"},
+                {"721424243015", "AZWAD A", "AI & DS"},
+                {"721424243016", "BADRA S", "AI & DS"},
+                {"721424243017", "BAINTHAMIZHAN PV", "AI & DS"},
+                {"721424243018", "BALA SANKAR G", "AI & DS"},
+                {"721424243019", "BALAJI A S", "AI & DS"},
+                {"721424243020", "BALAMURUGAN S", "AI & DS"},
+                {"721424243021", "BARANIDHARAN P", "AI & DS"},
+                {"721424243022", "BARATHVARSHAN D", "AI & DS"},
+                {"721424243023", "CHANDRU P", "AI & DS"},
+                {"721424243024", "DEEPAK A", "AI & DS"},
+                {"721424243025", "DELNA DENNIS", "AI & DS"},
+                {"721424243026", "DEVANATHAN G", "AI & DS"},
+                {"721424243027", "DHANU SRI R", "AI & DS"},
+                {"721424243028", "DHANUJA M", "AI & DS"},
+                {"721424243029", "DHATCHINAMOORTHI R", "AI & DS"},
+                {"721424243030", "DHEETCHAN MANIK A", "AI & DS"},
+                {"721424243031", "DINESH KARTHIK A", "AI & DS"},
+                {"721424243032", "DINESH P S", "AI & DS"},
+                {"721424243033", "DINESH V", "AI & DS"},
+                {"721424243034", "DIVYA SRI S", "AI & DS"},
+                {"721424243035", "EARICK ANTO S", "AI & DS"},
+                {"721424243036", "ESWARA DHANALAKSHMI M", "AI & DS"},
+                {"721424243037", "GANESH MOORTHY A", "AI & DS"},
+                {"721424243038", "GANESH V", "AI & DS"},
+                {"721424243039", "Ganeshkrishnan N", "AI & DS"},
+                {"721424243040", "GOUTHAM PRABHAKAR M", "AI & DS"},
+                {"721424243041", "GUGANRAJ S", "AI & DS"},
+                {"721424243042", "GURUDEVAN. A", "AI & DS"},
+                {"721424243043", "HAREESWAR R", "AI & DS"},
+                {"721424243044", "HARIPRASATH S", "AI & DS"},
+                {"721424243045", "HARISH S K", "AI & DS"},
+                {"721424243046", "HARSHINI S", "AI & DS"},
+                {"721424243047", "HARSHIT R", "AI & DS"},
+                {"721424243048", "HEPSHIBA A", "AI & DS"},
+                {"721424243049", "INDHUMATHI J", "AI & DS"},
+                {"721424243050", "ISMATH BATCHA S", "AI & DS"},
+                {"721424243051", "JAI AADHITHYA S", "AI & DS"},
+                {"721424243052", "JANA S", "AI & DS"},
+                {"721424243053", "JANANI U S", "AI & DS"},
+                {"721424243054", "JAYACHANDIRAN K", "AI & DS"},
+                {"721424243055", "JEEVA M", "AI & DS"},
+                {"721424243056", "JEGAN M", "AI & DS"},
+                {"721424243057", "JIDTHESH V", "AI & DS"},
+                {"721424243058", "JOSEPH D", "AI & DS"},
+                {"721424243059", "KAILASH R", "AI & DS"},
+                {"721424243060", "KALYANI JITH", "AI & DS"},
+                {"721424243061", "KARTHICK N", "AI & DS"},
+                {"721424243062", "KARTHIKA B", "AI & DS"},
+                {"721424243063", "KAVIBALAN R", "AI & DS"},
+                {"721424243304", "SYIAM D", "AI & DS"}
+            };
+            for (String[] stu : aidsStudents) {
+                seedStudents.add(stu);
+            }
+
+            String[] firstNames = {
+                "ARAVIND", "DEEPAK", "GOKUL", "HARIHARAN", "KARTHIK", "MANOJ", "ABHISHEK", "AKASH", "AMIT", "ANAND",
+                "BALAJI", "BHARATH", "DINESH", "GUGAN", "HARISH", "JAI", "KAVIN", "LOGESH", "MITHUN", "NAVEEN",
+                "PRANAV", "RAHUL", "SANJAY", "THARUN", "VARUN", "VIJAY", "YOGESH", "ANIRUDH", "CHARAN", "DIVYESH",
+                "ELANGO", "GIRISH", "HEMANTH", "INDRAJIT", "JEEVA", "KISHORE", "MANISH", "NITHIN", "POOVARASAN", "RAJESH",
+                "SARAVANAN", "SUDHAKAR", "VIGNESH", "YESHWANTH", "ROHIT", "SABARI", "SACHIN", "SATHISH", "SURYA", "VASANTH",
+                "ARUN", "KUMAR", "MOHAN", "RAGHU", "RAMESH", "SIVA", "SURESH", "VENKAT", "VIKRAM", "KIRAN"
+            };
+            String[] lastNames = {
+                "S", "R", "K", "M", "A", "P", "V", "T", "G", "N", "J", "B", "C", "D", "E"
+            };
+
+            for (int i = 1; i <= 60; i++) {
+                String code = String.format("721424105%03d", i);
+                String name = firstNames[(i - 1) % firstNames.length] + " " + lastNames[(i - 1) % lastNames.length];
+                seedStudents.add(new String[]{code, name, "EEE"});
+            }
+
+            for (int i = 1; i <= 60; i++) {
+                String code = String.format("721424114%03d", i);
+                String name = firstNames[(i - 1) % firstNames.length] + " " + lastNames[(i - 1) % lastNames.length];
+                seedStudents.add(new String[]{code, name, "Mechanical"});
+            }
+
+            String insertSQL = "INSERT INTO Students (student_code, full_name, email, password_hash, phone, department, year_of_study, max_borrow_limit, current_borrowed) VALUES (?, ?, ?, ?, ?, ?, ?, 5, 0)";
+            try (PreparedStatement pStmt = conn.prepareStatement(insertSQL)) {
+                for (String[] stu : seedStudents) {
+                    String code = stu[0];
+                    String name = stu[1];
+                    String dept = stu[2];
+                    
+                    String cleanName = name.toLowerCase().replaceAll("[^a-z]", "");
+                    String last4 = code.substring(code.length() - 4);
+                    String email = cleanName + last4 + ".ai24@gmail.com";
+
+                    pStmt.setString(1, code);
+                    pStmt.setString(2, name);
+                    pStmt.setString(3, email);
+                    pStmt.setString(4, studentPassHash);
+                    pStmt.setString(5, "+91 9000000000");
+                    pStmt.setString(6, dept);
+                    pStmt.setInt(7, 3); // 3rd year
+                    pStmt.addBatch();
+                }
+                pStmt.executeBatch();
+                System.out.println(" Seeded " + seedStudents.size() + " students successfully (AI & DS, EEE, Mechanical) with custom emails.");
+            }
         }
 
         // Seed Sample Notifications

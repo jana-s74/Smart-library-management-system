@@ -123,6 +123,23 @@ public class UserDAO {
         return null;
     }
 
+    public Student getStudentByCode(String code) {
+        String query = "SELECT * FROM Students WHERE LOWER(student_code) = LOWER(?)";
+        Connection conn = DatabaseConnection.getConnection();
+        if (conn == null) return null;
+
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, code.trim());
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return mapStudent(rs);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public boolean updateStudentStatus(int studentId, String status) {
         String query = "UPDATE Students SET status = ? WHERE student_id = ?";
         Connection conn = DatabaseConnection.getConnection();
@@ -139,7 +156,7 @@ public class UserDAO {
     }
 
     private Student mapStudent(ResultSet rs) throws SQLException {
-        return new Student(
+        Student s = new Student(
                 rs.getInt("student_id"),
                 rs.getString("student_code"),
                 rs.getString("full_name"),
@@ -154,5 +171,7 @@ public class UserDAO {
                 rs.getString("profile_pic_path"),
                 rs.getTimestamp("created_at")
         );
+        s.setPasswordHash(rs.getString("password_hash"));
+        return s;
     }
 }

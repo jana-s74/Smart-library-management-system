@@ -21,10 +21,14 @@ public class LibraWebServer {
 
     private static final int PORT = 8080;
     private final LibraryController controller;
+    private final dao.AttendanceDAO attendanceDAO;
+    private final dao.UserDAO userDAO;
     private HttpServer server;
 
     public LibraWebServer() {
         this.controller = new LibraryController();
+        this.attendanceDAO = new dao.AttendanceDAO();
+        this.userDAO = new dao.UserDAO();
     }
 
     public static void main(String[] args) {
@@ -55,7 +59,11 @@ public class LibraWebServer {
             server.createContext("/api/borrow/overdue", new OverdueHandler());
             server.createContext("/api/students", new StudentsHandler());
             server.createContext("/api/students/status", new StudentStatusHandler());
+            server.createContext("/api/attendance/logs", new AttendanceLogsHandler());
+            server.createContext("/api/attendance/scan", new AttendanceScanHandler());
             server.createContext("/api/health", new HealthHandler());
+            server.createContext("/api/analytics/top-visitors", new TopVisitorsHandler());
+
 
             // Static file handler
             server.createContext("/", new StaticFileHandler());
@@ -67,9 +75,33 @@ public class LibraWebServer {
             System.out.println("🚀 Web Dashboard UI available at: http://localhost:" + portToUse + "/index.html");
             System.out.println("==================================================");
 
+            // Automatically open default browser
+            openWebBrowser("http://localhost:" + portToUse + "/index.html");
+
         } catch (Exception e) {
             System.err.println("❌ Failed to start Web Server: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    private void openWebBrowser(String url) {
+        try {
+            if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+                java.awt.Desktop.getDesktop().browse(new java.net.URI(url));
+            } else {
+                String os = System.getProperty("os.name").toLowerCase();
+                if (os.contains("win")) {
+                    Runtime.getRuntime().exec(new String[]{"rundll32", "url.dll,FileProtocolHandler", url});
+                } else if (os.contains("mac")) {
+                    Runtime.getRuntime().exec(new String[]{"open", url});
+                } else if (os.contains("nix") || os.contains("nux")) {
+                    Runtime.getRuntime().exec(new String[]{"xdg-open", url});
+                } else {
+                    System.out.println("ℹ️ Please open your browser and navigate to: " + url);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("ℹ️ Could not open default web browser automatically: " + e.getMessage());
         }
     }
 
@@ -443,8 +475,8 @@ public class LibraWebServer {
             Map<String, String> json = parseSimpleJson(body);
             try {
                 int studentId = Integer.parseInt(json.get("studentId"));
-                int bookId = Integer.parseInt(json.get("bookId"));
-                int loanDays = Integer.parseInt(json.getOrDefault("loanDays", "14"));
+                int bookId    = Integer.parseInt(json.get("bookId"));
+                int loanDays  = Integer.parseInt(json.getOrDefault("loanDays", "14"));
 
                 boolean success = controller.issueBook(studentId, bookId, loanDays);
                 if (success) {
@@ -457,6 +489,7 @@ public class LibraWebServer {
             }
         }
     }
+
 
     private class ReturnBookHandler implements HttpHandler {
         @Override
@@ -586,10 +619,11 @@ public class LibraWebServer {
             for (int i = 0; i < students.size(); i++) {
                 Student s = students.get(i);
                 sb.append(String.format(
-                        "{\"id\":%d,\"studentCode\":\"%s\",\"fullName\":\"%s\",\"email\":\"%s\",\"phone\":\"%s\",\"department\":\"%s\",\"yearOfStudy\":%d,\"maxBorrowLimit\":%d,\"currentBorrowed\":%d,\"totalFinesOwed\":%.2f,\"status\":\"%s\"}",
+                        "{\"id\":%d,\"studentCode\":\"%s\",\"fullName\":\"%s\",\"email\":\"%s\",\"phone\":\"%s\",\"department\":\"%s\",\"yearOfStudy\":%d,\"maxBorrowLimit\":%d,\"currentBorrowed\":%d,\"totalFinesOwed\":%.2f,\"status\":\"%s\",\"passwordHash\":\"%s\"}",
                         s.getId(), escapeJson(s.getStudentCode()), escapeJson(s.getFullName()), escapeJson(s.getEmail()),
                         escapeJson(s.getPhone()), escapeJson(s.getDepartment()), s.getYearOfStudy(),
-                        s.getMaxBorrowLimit(), s.getCurrentBorrowed(), s.getTotalFinesOwed(), escapeJson(s.getStatus())
+                        s.getMaxBorrowLimit(), s.getCurrentBorrowed(), s.getTotalFinesOwed(), escapeJson(s.getStatus()),
+                        escapeJson(s.getPasswordHash())
                 ));
                 if (i < students.size() - 1) sb.append(",");
             }
@@ -687,6 +721,164 @@ public class LibraWebServer {
             if (lower.endsWith(".svg")) return "image/svg+xml";
             if (lower.endsWith(".ico")) return "image/x-icon";
             return "application/octet-stream";
+        }
+    }
+
+    private class AttendanceLogsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendOptionsResponse(exchange);
+                return;
+            }
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJsonResponse(exchange, 405, "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+
+            List<model.AttendanceLog> logs = attendanceDAO.getAttendanceLogs();
+            int inside = attendanceDAO.getCurrentlyInsideCount();
+            int todayVisits = attendanceDAO.getTodayTotalVisits();
+
+            StringBuilder sb = new StringBuilder("{");
+            sb.append("\"success\":true,");
+            sb.append("\"currentlyInside\":").append(inside).append(",");
+            sb.append("\"totalVisitsToday\":").append(todayVisits).append(",");
+            sb.append("\"logs\":[");
+            for (int i = 0; i < logs.size(); i++) {
+                model.AttendanceLog log = logs.get(i);
+                sb.append("{");
+                sb.append("\"attendanceId\":").append(log.getAttendanceId()).append(",");
+                sb.append("\"studentId\":").append(log.getStudentId()).append(",");
+                sb.append("\"studentCode\":\"").append(escapeJson(log.getStudentCode())).append("\",");
+                sb.append("\"studentName\":\"").append(escapeJson(log.getStudentName())).append("\",");
+                sb.append("\"department\":\"").append(escapeJson(log.getDepartment())).append("\",");
+                sb.append("\"checkInTime\":\"").append(log.getCheckInTime() != null ? log.getCheckInTime().toString() : "").append("\",");
+                sb.append("\"checkOutTime\":\"").append(log.getCheckOutTime() != null ? log.getCheckOutTime().toString() : "").append("\",");
+                sb.append("\"status\":\"").append(log.getStatus()).append("\"");
+                sb.append("}");
+                if (i < logs.size() - 1) sb.append(",");
+            }
+            sb.append("]");
+            sb.append("}");
+
+            sendJsonResponse(exchange, 200, sb.toString());
+        }
+    }
+
+    private class AttendanceScanHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendOptionsResponse(exchange);
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJsonResponse(exchange, 405, "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+
+            String body = readRequestBody(exchange);
+            Map<String, String> json = parseSimpleJson(body);
+            String qrData = json.getOrDefault("qrData", "").trim();
+
+            if (qrData.isEmpty()) {
+                sendJsonResponse(exchange, 400, "{\"success\":false,\"message\":\"Missing qrData parameter.\"}");
+                return;
+            }
+
+            String studentCode = qrData;
+            if (qrData.startsWith("libraai:student:")) {
+                String[] parts = qrData.split(":");
+                if (parts.length >= 3) {
+                    studentCode = parts[2];
+                }
+            }
+
+            model.Student student = userDAO.getStudentByCode(studentCode);
+            if (student == null) {
+                sendJsonResponse(exchange, 404, "{\"success\":false,\"message\":\"Student not found in database.\"}");
+                return;
+            }
+
+            Timestamp now = new Timestamp(System.currentTimeMillis());
+            model.AttendanceLog active = attendanceDAO.getActiveAttendance(student.getId());
+            String action;
+            boolean dbSuccess;
+
+            if (active != null) {
+                // Enforce 15-second minimum stay before allowing check-out
+                long secondsInside = (now.getTime() - active.getCheckInTime().getTime()) / 1000L;
+                if (secondsInside < 15) {
+                    long remaining = 15 - secondsInside;
+                    sendJsonResponse(exchange, 429,
+                        String.format("{\"success\":false,\"message\":\"Too soon! Please wait %d more second%s before leaving.\",\"remainingSeconds\":%d}",
+                            remaining, remaining == 1 ? "" : "s", remaining));
+                    return;
+                }
+                dbSuccess = attendanceDAO.checkOut(active.getAttendanceId(), now);
+                action = "CHECK_OUT";
+            } else {
+                dbSuccess = attendanceDAO.checkIn(student.getId(), now);
+                action = "CHECK_IN";
+            }
+
+            if (dbSuccess) {
+                int inside = attendanceDAO.getCurrentlyInsideCount();
+                int todayVisits = attendanceDAO.getTodayTotalVisits();
+                
+                String responseJson = String.format(
+                        "{\"success\":true,\"action\":\"%s\",\"studentName\":\"%s\",\"studentCode\":\"%s\",\"department\":\"%s\",\"timestamp\":\"%s\",\"currentlyInside\":%d,\"totalVisitsToday\":%d}",
+                        action,
+                        escapeJson(student.getFullName()),
+                        escapeJson(student.getStudentCode()),
+                        escapeJson(student.getDepartment()),
+                        now.toString(),
+                        inside,
+                        todayVisits
+                );
+                sendJsonResponse(exchange, 200, responseJson);
+            } else {
+                sendJsonResponse(exchange, 500, "{\"success\":false,\"message\":\"Database operation failed.\"}");
+            }
+        }
+    }
+
+    private class TopVisitorsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendOptionsResponse(exchange);
+                return;
+            }
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJsonResponse(exchange, 405, "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+
+            Map<String, String> query = parseQueryParams(exchange.getRequestURI().getQuery());
+            int limit = 10;
+            try {
+                if (query.containsKey("limit")) {
+                    limit = Integer.parseInt(query.get("limit"));
+                }
+            } catch (Exception ignored) {}
+
+            List<Map<String, Object>> visitors = attendanceDAO.getTopLibraryVisitors(limit);
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < visitors.size(); i++) {
+                Map<String, Object> visitor = visitors.get(i);
+                sb.append("{");
+                sb.append("\"studentId\":").append(visitor.get("studentId")).append(",");
+                sb.append("\"studentCode\":\"").append(escapeJson((String) visitor.get("studentCode"))).append("\",");
+                sb.append("\"fullName\":\"").append(escapeJson((String) visitor.get("fullName"))).append("\",");
+                sb.append("\"department\":\"").append(escapeJson((String) visitor.get("department"))).append("\",");
+                sb.append("\"totalSeconds\":").append(visitor.get("totalSeconds"));
+                sb.append("}");
+                if (i < visitors.size() - 1) sb.append(",");
+            }
+            sb.append("]");
+            sendJsonResponse(exchange, 200, sb.toString());
         }
     }
 }
