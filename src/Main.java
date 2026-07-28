@@ -1,5 +1,4 @@
 import database.SchemaInitializer;
-import ui.auth.LoginFrame;
 import web.server.LibraWebServer;
 
 import javax.swing.*;
@@ -32,16 +31,6 @@ public class Main {
             webServer.start();
         }, "LibraWebServer-Thread").start();
 
-        // 3. Launch Swing GUI on EDT (Optional Desktop Interface) - Disabled as requested to use Web interface
-        /*
-        if (!GraphicsEnvironment.isHeadless()) {
-            SwingUtilities.invokeLater(() -> {
-                LoginFrame loginFrame = new LoginFrame();
-                loginFrame.setVisible(true);
-                System.out.println(" Desktop GUI initialized successfully.");
-            });
-        }
-        */
         System.out.println(" Desktop GUI disabled. Web Server mode is active.");
     }
 }
