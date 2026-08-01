@@ -58,6 +58,17 @@ document.addEventListener("DOMContentLoaded", function () {
         regCode.addEventListener("input", updateEmail);
         regFullName.addEventListener("input", updateEmail);
     }
+
+    // Redraw analytics chart on window resize
+    let resizeTimeout;
+    window.addEventListener("resize", function () {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            if (state.activeTab === 'analytics' || state.activeTab === 'dashboard') {
+                renderAnalyticsCanvasChart();
+            }
+        }, 100);
+    });
 });
 
 function showLanding() {
@@ -1143,8 +1154,16 @@ function issueCurrentDetailBook() {
 function renderAnalyticsCanvasChart() {
     const canvas = document.getElementById("webAnalyticsCanvas");
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
 
+    // Set internal resolution based on parent container size
+    const parent = canvas.parentNode;
+    if (!parent) return;
+    const rect = parent.getBoundingClientRect();
+    
+    canvas.width = Math.max(280, Math.min(600, rect.width - 20));
+    canvas.height = 280;
+
+    const ctx = canvas.getContext("2d");
     const width = canvas.width;
     const height = canvas.height;
     ctx.clearRect(0, 0, width, height);
@@ -1169,19 +1188,22 @@ function renderAnalyticsCanvasChart() {
     ];
 
     const colors = ["#F97316", "#3B82F6", "#10B981", "#6366F1", "#F59E0B", "#EC4899"];
-    const startX = 70;
+    const startX = Math.min(70, width * 0.12);
     const startY = height - 50;
     const chartH = height - 100;
     const maxVal = Math.max(...data.map(d => d.value), 10);
-    const barW = Math.min(55, Math.floor((width - startX - 40) / data.length) - 20);
-    const gap = 25;
+    
+    // Calculate dynamic bar width and gap to fit canvas width
+    const availableWidth = width - startX - 30;
+    const barW = Math.min(55, Math.floor(availableWidth / data.length) * 0.6);
+    const gap = Math.floor((availableWidth - (data.length * barW)) / (data.length - 1 || 1));
 
     // Draw X Axis Line
     ctx.beginPath();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.1)";
     ctx.lineWidth = 2;
     ctx.moveTo(startX - 15, startY);
-    ctx.lineTo(startX + (data.length * (barW + gap)), startY);
+    ctx.lineTo(startX + (data.length * (barW + gap)) - gap + 15, startY);
     ctx.stroke();
 
     // Render Bars & Labels
@@ -1198,14 +1220,14 @@ function renderAnalyticsCanvasChart() {
         ctx.fill();
 
         // Draw Value Number
-        ctx.fillStyle = "#F8FAFC";
+        ctx.fillStyle = "#1E1B4B";
         ctx.font = "bold 13px Outfit";
         ctx.textAlign = "center";
         ctx.fillText(item.value, x + barW / 2, y - 8);
 
         // Draw Category Label
-        ctx.fillStyle = "#94A3B8";
-        ctx.font = "12px Inter";
+        ctx.fillStyle = "#64748B";
+        ctx.font = "11px Inter";
         ctx.fillText(item.label.substring(0, 10), x + barW / 2, startY + 22);
     });
 
