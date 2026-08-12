@@ -52,6 +52,7 @@ public class LibraWebServer {
             server.createContext("/api/stats", new StatsHandler());
             server.createContext("/api/auth/login", new LoginHandler());
             server.createContext("/api/auth/register", new RegisterHandler());
+            server.createContext("/api/auth/change-password", new ChangePasswordHandler());
             server.createContext("/api/books", new BooksHandler());
             server.createContext("/api/borrow/issue", new IssueBookHandler());
             server.createContext("/api/borrow/return", new ReturnBookHandler());
@@ -318,6 +319,38 @@ public class LibraWebServer {
                 sendJsonResponse(exchange, 201, "{\"success\":true,\"message\":\"Student registered successfully!\"}");
             } else {
                 sendJsonResponse(exchange, 400, "{\"success\":false,\"message\":\"Registration failed. Student code or email might already exist.\"}");
+            }
+        }
+    }
+
+    private class ChangePasswordHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendOptionsResponse(exchange);
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJsonResponse(exchange, 405, "{\"success\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+
+            String body = readRequestBody(exchange);
+            Map<String, String> json = parseSimpleJson(body);
+            String username = json.getOrDefault("username", "");
+            String currentPassword = json.getOrDefault("currentPassword", "");
+            String newPassword = json.getOrDefault("newPassword", "");
+
+            if (username.isEmpty() || currentPassword.isEmpty() || newPassword.isEmpty()) {
+                sendJsonResponse(exchange, 400, "{\"success\":false,\"message\":\"All fields are required.\"}");
+                return;
+            }
+
+            boolean success = controller.changePassword(username, currentPassword, newPassword);
+            if (success) {
+                sendJsonResponse(exchange, 200, "{\"success\":true,\"message\":\"Password updated successfully!\"}");
+            } else {
+                sendJsonResponse(exchange, 400, "{\"success\":false,\"message\":\"Failed to update password. Verify current password.\"}");
             }
         }
     }

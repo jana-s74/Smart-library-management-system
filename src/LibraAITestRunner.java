@@ -173,23 +173,24 @@ public class LibraAITestRunner {
     // UNIT TESTS — PasswordUtils
     // ═════════════════════════════════════════════════════════════════════════
     static void testPasswordUtils() {
-        section("UNIT TEST  |  PasswordUtils (SHA-256)");
+        section("UNIT TEST  |  PasswordUtils (BCrypt)");
 
-        // Hash must be 64-char hex
+        // Hash must be 60-char BCrypt hash
         String hash = PasswordUtils.hashPassword("admin123");
         assertNotNull(hash, "Hash is not null");
-        assertEquals(64, hash.length(), "Hash length is 64 hex chars");
+        assertEquals(60, hash.length(), "Hash length is 60 chars");
 
-        // Same input → same hash (deterministic)
+        // BCrypt is non-deterministic, so hash != hash2
         String hash2 = PasswordUtils.hashPassword("admin123");
-        assertEquals(hash, hash2, "Same password yields same hash");
+        assertFalse(hash.equals(hash2), "BCrypt hashes are non-deterministic");
 
         // Different input → different hash
         String hash3 = PasswordUtils.hashPassword("wrongpassword");
         assertFalse(hash.equals(hash3), "Different password yields different hash");
 
         // Verify password – correct
-        assertTrue(PasswordUtils.verifyPassword("admin123", hash), "Correct password verifies OK");
+        assertTrue(PasswordUtils.verifyPassword("admin123", hash), "Correct password verifies OK against hash 1");
+        assertTrue(PasswordUtils.verifyPassword("admin123", hash2), "Correct password verifies OK against hash 2");
 
         // Verify password – wrong
         assertFalse(PasswordUtils.verifyPassword("wrong", hash), "Wrong password fails verification");
@@ -201,6 +202,7 @@ public class LibraAITestRunner {
         assertFalse(PasswordUtils.verifyPassword(null, hash), "Null raw password fails verify");
         assertFalse(PasswordUtils.verifyPassword("admin123", null), "Null stored hash fails verify");
     }
+
 
     // ═════════════════════════════════════════════════════════════════════════
     // UNIT TESTS — BookHashMapIndex (O(1) Lookup)
@@ -474,6 +476,15 @@ public class LibraAITestRunner {
             fail("FineCalculator smoke test", e.getMessage());
         }
 
+        try {
+            dao.UserDAO userDAO = new dao.UserDAO();
+            boolean res = userDAO.changePassword("dummy", "curr", "new");
+            assertFalse(res, "changePassword handles uninitialized database connection gracefully");
+        } catch (Exception e) {
+            fail("UserDAO.changePassword NPE check", e.getMessage());
+        }
+
         System.out.println("\n  ✔  All critical components instantiated without error.");
     }
 }
+

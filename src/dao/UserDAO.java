@@ -155,6 +155,59 @@ public class UserDAO {
         }
     }
 
+    public boolean changePassword(String usernameOrEmail, String currentPassword, String newPassword) {
+        Connection conn = DatabaseConnection.getConnection();
+        if (conn == null) return false;
+
+        String trimmed = usernameOrEmail.trim();
+
+        // 1. Try to find the Admin
+        String adminQuery = "SELECT password_hash FROM Admins WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(adminQuery)) {
+            pstmt.setString(1, trimmed);
+            pstmt.setString(2, trimmed);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                String storedHash = rs.getString("password_hash");
+                if (PasswordUtils.verifyPassword(currentPassword, storedHash)) {
+                    String updateQuery = "UPDATE Admins SET password_hash = ? WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)";
+                    try (PreparedStatement updatePstmt = conn.prepareStatement(updateQuery)) {
+                        updatePstmt.setString(1, PasswordUtils.hashPassword(newPassword));
+                        updatePstmt.setString(2, trimmed);
+                        updatePstmt.setString(3, trimmed);
+                        return updatePstmt.executeUpdate() > 0;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        // 2. Try to find the Student
+        String studentQuery = "SELECT password_hash FROM Students WHERE LOWER(student_code) = LOWER(?) OR LOWER(email) = LOWER(?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(studentQuery)) {
+            pstmt.setString(1, trimmed);
+            pstmt.setString(2, trimmed);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                String storedHash = rs.getString("password_hash");
+                if (PasswordUtils.verifyPassword(currentPassword, storedHash)) {
+                    String updateQuery = "UPDATE Students SET password_hash = ? WHERE LOWER(student_code) = LOWER(?) OR LOWER(email) = LOWER(?)";
+                    try (PreparedStatement updatePstmt = conn.prepareStatement(updateQuery)) {
+                        updatePstmt.setString(1, PasswordUtils.hashPassword(newPassword));
+                        updatePstmt.setString(2, trimmed);
+                        updatePstmt.setString(3, trimmed);
+                        return updatePstmt.executeUpdate() > 0;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
+
     private Student mapStudent(ResultSet rs) throws SQLException {
         Student s = new Student(
                 rs.getInt("student_id"),
@@ -175,3 +228,4 @@ public class UserDAO {
         return s;
     }
 }
+

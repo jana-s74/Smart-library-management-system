@@ -169,14 +169,24 @@ public class SchemaInitializer {
     }
 
     private static void seedInitialData(Connection conn, Statement stmt) throws SQLException {
-        // Seed Admin user
-        ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM Admins");
+        // Seed Admin 1
+        ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM Admins WHERE LOWER(username) = 'janaselvarasu7@gmail.com'");
         if (rs.next() && rs.getInt(1) == 0) {
             String defaultPasswordHash = PasswordUtils.hashPassword("janaSK@1123");
             stmt.executeUpdate("INSERT INTO Admins (username, password_hash, full_name, email, phone) " +
                     "VALUES ('janaselvarasu7@gmail.com', '" + defaultPasswordHash + "', 'Jana Selvarasu', 'janaselvarasu7@gmail.com', '+91 9000000000')");
-            System.out.println(" Seeded Admin: janaselvarasu7@gmail.com / janaSK@1123");
+            System.out.println(" Seeded Admin 1: janaselvarasu7@gmail.com / janaSK@1123");
         }
+
+        // Seed Admin 2
+        rs = stmt.executeQuery("SELECT COUNT(*) FROM Admins WHERE LOWER(username) = 'jj6773286@gmail.com'");
+        if (rs.next() && rs.getInt(1) == 0) {
+            String defaultPasswordHash2 = PasswordUtils.hashPassword("jana@1234");
+            stmt.executeUpdate("INSERT INTO Admins (username, password_hash, full_name, email, phone) " +
+                    "VALUES ('jj6773286@gmail.com', '" + defaultPasswordHash2 + "', 'JJ Admin', 'jj6773286@gmail.com', '+91 9000000001')");
+            System.out.println(" Seeded Admin 2: jj6773286@gmail.com / jana@1234");
+        }
+
 
         // Seed Categories
         rs = stmt.executeQuery("SELECT COUNT(*) FROM Categories");

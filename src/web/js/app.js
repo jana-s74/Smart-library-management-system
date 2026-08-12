@@ -128,7 +128,7 @@ async function fetchCatalogBooks() {
     try {
         const sort = document.getElementById("sortSelect") ? document.getElementById("sortSelect").value : 'title';
         const search = document.getElementById("catalogSearchInput") ? document.getElementById("catalogSearchInput").value.trim() : '';
-        
+
         let url = `${API_BASE}/api/books?sort=${encodeURIComponent(sort)}`;
         if (search) {
             url += `&search=${encodeURIComponent(search)}`;
@@ -234,7 +234,7 @@ function renderBookCoverHTML(book) {
     const coverUrl = getBookCoverUrl(book);
     const titleEscaped = escapeHtml(book.title);
     const authorEscaped = escapeHtml(book.author);
-    
+
     let hash = 0;
     for (let i = 0; i < book.title.length; i++) {
         hash = book.title.charCodeAt(i) + ((hash << 5) - hash);
@@ -434,7 +434,7 @@ function renderStudentsTable() {
         : state.students.filter(s => s.department === filterVal);
 
     if (searchVal) {
-        filtered = filtered.filter(s => 
+        filtered = filtered.filter(s =>
             (s.fullName && s.fullName.toLowerCase().includes(searchVal)) ||
             (s.studentCode && s.studentCode.toLowerCase().includes(searchVal)) ||
             (s.email && s.email.toLowerCase().includes(searchVal))
@@ -629,30 +629,276 @@ function closeLoginModal() {
     document.getElementById("loginModal").classList.add("hidden");
 }
 
+// ==================== LOGIN WITH OTP GATE ====================
+
+const OTP_BASE         = 'http://localhost:3001';  // Node OTP microservice
+const OTP_WINDOW_MS    = 6 * 60 * 60 * 1000;      // 6 hours
+const OTP_TS_KEY       = 'libraai_otp_verified_ts';
+const OTP_TTL_SECS     = 600;                      // 10 minutes (matches server)
+
+// Temp state while OTP modal is open
+let _pendingUser       = null;
+let _pendingUsername   = null;
+let _pendingRole       = null;
+let _otpCountInterval  = null;
+let _otpResendInterval = null;
+let _otpSecsLeft       = OTP_TTL_SECS;
+
 async function handleLoginSubmit(e) {
     e.preventDefault();
-    const role = document.getElementById("loginRole").value;
-    const username = document.getElementById("loginUsername").value.trim();
-    const password = document.getElementById("loginPassword").value.trim();
+    const role     = document.getElementById('loginRole').value;
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+
     try {
-        const res = await fetch(`${API_BASE}/api/auth/login`, {
-            method: 'POST',
+        const res  = await fetch(`${API_BASE}/api/auth/login`, {
+            method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role, username, password })
+            body:    JSON.stringify({ role, username, password })
         });
         const data = await res.json();
-        if (data.success) {
-            state.currentUser = data.user;
-            localStorage.setItem("libraai_user", JSON.stringify(data.user));
-            closeLoginModal();
-            showToast(`Welcome back, ${data.user.fullName}! 🎉`, 'success');
-            showDashboard();
-        } else {
+
+        if (!data.success) {
             showToast(data.message || 'Invalid credentials', 'error');
+            return;
         }
+
+        // ── Credentials verified — login immediately, no OTP required ─────────
+        _pendingUser     = data.user;
+        _pendingUsername = username;
+        _pendingRole     = role;
+
+        _finishLogin(false);
+
     } catch (err) {
         showToast('Server error. Make sure backend is running.', 'error');
     }
+}
+
+/* Called when credentials + OTP are both confirmed (or within window) */
+function _finishLogin(saveOtpTs) {
+    if (!_pendingUser) return;
+    state.currentUser  = _pendingUser;
+    state.loginTime    = new Date();
+    state.loginUsername = _pendingUsername;
+
+    if (saveOtpTs) {
+        localStorage.setItem(OTP_TS_KEY, String(Date.now()));
+    }
+
+    localStorage.setItem('libraai_user', JSON.stringify(_pendingUser));
+    _recordLoginHistory(_pendingUsername, _pendingUser.fullName || _pendingUsername, _pendingUser.role || 'ADMIN');
+
+    // clean up
+    _pendingUser = _pendingUsername = _pendingRole = null;
+
+    showToast(`Welcome back, ${state.currentUser.fullName}! 🎉`, 'success');
+    showDashboard();
+}
+
+/* ── OTP Flow ─────────────────────────────────────────────────────────────── */
+
+async function _initiateOtpFlow(emailTarget) {
+    // Show loading toast
+    showToast('Sending OTP to your email… 📧', 'info');
+
+    try {
+        const res  = await fetch(`${OTP_BASE}/otp/send`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ email: emailTarget })
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+            showToast(data.message || 'Failed to send OTP.', 'error');
+            // Fallback: allow direct login with a warning
+            showToast('OTP service unavailable. Logging in directly.', 'warning');
+            _finishLogin(false);
+            return;
+        }
+
+        showToast(`OTP sent to ${emailTarget} ✅`, 'success');
+        _openOtpModal(emailTarget);
+
+    } catch {
+        // OTP server not running — degrade gracefully
+        showToast('OTP server offline. Logging in directly.', 'warning');
+        _finishLogin(false);
+    }
+}
+
+function _openOtpModal(email) {
+    // Set sent-to text
+    const subEl = document.getElementById('otpSentTo');
+    if (subEl) subEl.textContent = `A 6-digit OTP was sent to ${email}. Valid for 10 minutes.`;
+
+    // Clear boxes
+    for (let i = 0; i < 6; i++) {
+        const el = document.getElementById(`otp${i}`);
+        if (el) { el.value = ''; el.className = 'otp-digit'; }
+    }
+
+    // Clear error
+    const errEl = document.getElementById('otpError');
+    if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+
+    // Resend button state
+    const resendBtn  = document.getElementById('otpResendBtn');
+    const resendCool = document.getElementById('otpResendCooldown');
+    if (resendBtn)  { resendBtn.style.display = 'inline'; resendBtn.disabled = false; }
+    if (resendCool) resendCool.classList.add('hidden');
+
+    // Start countdown
+    _otpSecsLeft = OTP_TTL_SECS;
+    _startOtpCountdown();
+
+    // Wire up digit navigation
+    _wireOtpDigits();
+
+    // Show modal
+    document.getElementById('otpModal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('otp0')?.focus(), 100);
+}
+
+function closeOtpModal() {
+    document.getElementById('otpModal')?.classList.add('hidden');
+    clearInterval(_otpCountInterval);
+    clearInterval(_otpResendInterval);
+    _pendingUser = _pendingUsername = _pendingRole = null;
+}
+
+function _wireOtpDigits() {
+    for (let i = 0; i < 6; i++) {
+        const el = document.getElementById(`otp${i}`);
+        if (!el) continue;
+        el.oninput = (ev) => {
+            // Only allow digits
+            el.value = el.value.replace(/\D/g, '').slice(-1);
+            el.classList.toggle('filled', el.value !== '');
+            if (el.value && i < 5) document.getElementById(`otp${i + 1}`)?.focus();
+        };
+        el.onkeydown = (ev) => {
+            if (ev.key === 'Backspace' && !el.value && i > 0) {
+                document.getElementById(`otp${i - 1}`)?.focus();
+            }
+            if (ev.key === 'Enter') handleOtpVerify();
+        };
+        el.onpaste = (ev) => {
+            ev.preventDefault();
+            const paste = (ev.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+            paste.split('').slice(0, 6).forEach((ch, idx) => {
+                const target = document.getElementById(`otp${idx}`);
+                if (target) { target.value = ch; target.classList.add('filled'); }
+            });
+            document.getElementById(`otp${Math.min(paste.length, 5)}`)?.focus();
+        };
+    }
+}
+
+function _startOtpCountdown() {
+    clearInterval(_otpCountInterval);
+    const el = document.getElementById('otpCountdown');
+    const update = () => {
+        if (!el) return;
+        const m = String(Math.floor(_otpSecsLeft / 60)).padStart(2, '0');
+        const s = String(_otpSecsLeft % 60).padStart(2, '0');
+        el.textContent = `${m}:${s}`;
+        el.className = _otpSecsLeft <= 60 ? 'otp-timer urgent' : 'otp-timer';
+        if (_otpSecsLeft <= 0) {
+            clearInterval(_otpCountInterval);
+            _showOtpError('OTP expired. Please request a new one.');
+            document.getElementById('otpVerifyBtn').disabled = true;
+        }
+        _otpSecsLeft--;
+    };
+    update();
+    _otpCountInterval = setInterval(update, 1000);
+}
+
+function _showOtpError(msg) {
+    const el = document.getElementById('otpError');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    for (let i = 0; i < 6; i++) {
+        document.getElementById(`otp${i}`)?.classList.add('error');
+    }
+    setTimeout(() => {
+        for (let i = 0; i < 6; i++) {
+            const d = document.getElementById(`otp${i}`);
+            if (d) d.classList.remove('error');
+        }
+    }, 800);
+}
+
+async function handleOtpVerify() {
+    const digits = Array.from({ length: 6 }, (_, i) => document.getElementById(`otp${i}`)?.value || '');
+    const otp    = digits.join('');
+
+    if (otp.length < 6) {
+        _showOtpError('Please enter all 6 digits.');
+        return;
+    }
+
+    const email = _pendingUser?.email || _pendingUsername;
+
+    try {
+        const res  = await fetch(`${OTP_BASE}/otp/verify`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ email, otp })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            clearInterval(_otpCountInterval);
+            document.getElementById('otpModal')?.classList.add('hidden');
+            _finishLogin(true);   // save 6-hour timestamp
+        } else {
+            _showOtpError(data.message || 'Invalid OTP. Try again.');
+        }
+    } catch {
+        _showOtpError('OTP server unreachable. Try again.');
+    }
+}
+
+async function handleOtpResend() {
+    const email = _pendingUser?.email || _pendingUsername;
+
+    // Disable resend for 30 seconds
+    const resendBtn  = document.getElementById('otpResendBtn');
+    const resendCool = document.getElementById('otpResendCooldown');
+    if (resendBtn)  { resendBtn.style.display = 'none'; }
+    if (resendCool) resendCool.classList.remove('hidden');
+
+    let cooldown = 30;
+    const secsEl = document.getElementById('otpResendSecs');
+    clearInterval(_otpResendInterval);
+    _otpResendInterval = setInterval(() => {
+        cooldown--;
+        if (secsEl) secsEl.textContent = cooldown;
+        if (cooldown <= 0) {
+            clearInterval(_otpResendInterval);
+            if (resendBtn)  { resendBtn.style.display = 'inline'; resendBtn.disabled = false; }
+            if (resendCool) resendCool.classList.add('hidden');
+        }
+    }, 1000);
+
+    await _initiateOtpFlow(email);
+
+    // Reset countdown
+    _otpSecsLeft = OTP_TTL_SECS;
+    document.getElementById('otpVerifyBtn').disabled = false;
+    const errEl = document.getElementById('otpError');
+    if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+}
+
+/* Called from the "Skip OTP" button shown only when within 6-hour window */
+function skipOtpAndLogin() {
+    document.getElementById('otpModal')?.classList.add('hidden');
+    clearInterval(_otpCountInterval);
+    _finishLogin(false);
 }
 
 function openRegisterModal() {
@@ -730,6 +976,9 @@ function updateUserUI() {
 
 function logoutUser() {
     state.currentUser = null;
+    state.loginTime = null;
+    state.loginUsername = null;
+    closeAdminProfile();
     localStorage.removeItem("libraai_user");
     showToast('Logged out. Goodbye! 👋', 'success');
     showLanding();
@@ -737,6 +986,184 @@ function logoutUser() {
 
 function isAdmin() {
     return state.currentUser && state.currentUser.role === 'ADMIN';
+}
+
+// ==================== ADMIN PROFILE DRAWER ====================
+
+let _sessionTimerInterval = null;
+
+function openAdminProfile() {
+    if (!state.currentUser) return;
+    const drawer = document.getElementById('adminProfileDrawer');
+    const backdrop = document.getElementById('profileDrawerBackdrop');
+    if (!drawer || !backdrop) return;
+
+    updateAdminProfilePanel();
+
+    backdrop.classList.remove('hidden');
+    drawer.classList.remove('hidden');
+
+    // Start live session timer
+    clearInterval(_sessionTimerInterval);
+    _sessionTimerInterval = setInterval(_tickSessionTimer, 1000);
+    _tickSessionTimer();
+}
+
+function closeAdminProfile() {
+    const drawer = document.getElementById('adminProfileDrawer');
+    const backdrop = document.getElementById('profileDrawerBackdrop');
+    if (drawer) drawer.classList.add('hidden');
+    if (backdrop) backdrop.classList.add('hidden');
+    clearInterval(_sessionTimerInterval);
+    // Reset change-password form
+    const form = document.getElementById('pdChangePwForm');
+    if (form) form.classList.add('hidden');
+}
+
+function updateAdminProfilePanel() {
+    const u = state.currentUser;
+    if (!u) return;
+
+    const name = u.fullName || u.username || 'Admin';
+    const initial = name.charAt(0).toUpperCase();
+    const email = state.loginUsername || u.email || u.username || '—';
+    const role = u.role || 'ADMIN';
+    const hash = u.passwordHash || '';
+
+    // Header
+    const pdAvatar = document.getElementById('pdAvatar');
+    const pdName = document.getElementById('pdName');
+    const pdRoleChip = document.getElementById('pdRoleChip');
+    if (pdAvatar) pdAvatar.textContent = initial;
+    if (pdName) pdName.textContent = name;
+    if (pdRoleChip) pdRoleChip.textContent = role;
+
+    // Login details
+    const pdEmail = document.getElementById('pdEmail');
+    const pdRole = document.getElementById('pdRole');
+    if (pdEmail) pdEmail.textContent = email;
+    if (pdRole) pdRole.textContent = role;
+
+    // Security
+    const pdHashPreview = document.getElementById('pdHashPreview');
+    if (pdHashPreview) {
+        pdHashPreview.textContent = hash ? hash.substring(0, 20) + '…' : 'Not available';
+    }
+
+    // Login time
+    const pdLoginTime = document.getElementById('pdLoginTime');
+    if (pdLoginTime) {
+        if (state.loginTime) {
+            pdLoginTime.textContent = state.loginTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        } else {
+            pdLoginTime.textContent = 'This session';
+        }
+    }
+
+    // Browser
+    const pdBrowser = document.getElementById('pdBrowser');
+    if (pdBrowser) {
+        const ua = navigator.userAgent;
+        let browser = 'Unknown';
+        if (ua.includes('Edg/')) browser = 'Microsoft Edge';
+        else if (ua.includes('Chrome')) browser = 'Google Chrome';
+        else if (ua.includes('Firefox')) browser = 'Mozilla Firefox';
+        else if (ua.includes('Safari')) browser = 'Safari';
+        pdBrowser.textContent = browser;
+    }
+
+    // Server status
+    _updateDrawerServerStatus();
+}
+
+function _tickSessionTimer() {
+    const el = document.getElementById('pdSessionTimer');
+    if (!el) return;
+    if (!state.loginTime) { el.textContent = '—'; return; }
+    const secs = Math.floor((Date.now() - state.loginTime.getTime()) / 1000);
+    const h = String(Math.floor(secs / 3600)).padStart(2, '0');
+    const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+    const s = String(secs % 60).padStart(2, '0');
+    el.textContent = `${h}:${m}:${s}`;
+}
+
+async function _updateDrawerServerStatus() {
+    const el = document.getElementById('pdServerStatus');
+    if (!el) return;
+    el.textContent = 'Checking...';
+    el.className = 'pd-chip';
+    try {
+        const res = await fetch(`${API_BASE}/api/health`);
+        if (res.ok) {
+            el.textContent = '● Online';
+            el.className = 'pd-chip green';
+        } else {
+            el.textContent = '● Degraded';
+            el.className = 'pd-chip red';
+        }
+    } catch {
+        el.textContent = '● Offline';
+        el.className = 'pd-chip red';
+    }
+}
+
+function toggleChangePassword() {
+    const form = document.getElementById('pdChangePwForm');
+    const btn = document.getElementById('pdChangePwBtn');
+    if (!form) return;
+    const isHidden = form.classList.contains('hidden');
+    if (isHidden) {
+        form.classList.remove('hidden');
+        if (btn) btn.textContent = '✕ Cancel';
+    } else {
+        form.classList.add('hidden');
+        if (btn) btn.textContent = '🔑 Change Password';
+        ['pdCurrentPw', 'pdNewPw', 'pdConfirmPw'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+    }
+}
+
+async function handleChangePassword() {
+    const current = document.getElementById('pdCurrentPw')?.value.trim();
+    const newPw = document.getElementById('pdNewPw')?.value.trim();
+    const confirm = document.getElementById('pdConfirmPw')?.value.trim();
+
+    if (!current || !newPw || !confirm) {
+        showToast('Please fill in all password fields.', 'error'); return;
+    }
+    if (newPw.length < 6) {
+        showToast('New password must be at least 6 characters.', 'error'); return;
+    }
+    if (newPw !== confirm) {
+        showToast('New passwords do not match.', 'error'); return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: state.loginUsername || state.currentUser?.email,
+                currentPassword: current,
+                newPassword: newPw
+            })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+                showToast('✅ Password changed successfully!', 'success');
+                toggleChangePassword();
+            } else {
+                showToast(data.message || 'Password change failed.', 'error');
+            }
+        } else {
+            showToast('Password change failed — check current password.', 'error');
+        }
+    } catch {
+        showToast('Server not reachable. Password not changed.', 'error');
+    }
 }
 
 // Book Modal
@@ -917,7 +1344,7 @@ function closeIssueModal() {
 
 function handleIssueConfirmAndScan() {
     if (!state.issueSelectedStudentId) { showToast('No student selected.', 'error'); return; }
-    
+
     let bookIdToIssue = state.issuePendingBookId;
     if (!bookIdToIssue) {
         const fallback = document.getElementById("issueFallbackBookSelect");
@@ -928,7 +1355,7 @@ function handleIssueConfirmAndScan() {
     const loanDays = document.getElementById("issueLoanDays")?.value || 14;
     const studentIdToIssue = state.issueSelectedStudentId;
     const student = state.students.find(s => s.id === studentIdToIssue);
-    
+
     state.issuePendingBookId = bookIdToIssue;
     state.issuePendingLoanDays = loanDays;
 
@@ -947,7 +1374,7 @@ function handleIssueConfirmAndScan() {
     scannerMode = 'ISSUE_VERIFY';
     const header = document.querySelector("#scannerModal h3");
     if (header) header.innerText = `🔒 Scan ID Card for ${student ? student.fullName : 'Student'}`;
-    
+
     openScanner();
 }
 
@@ -960,10 +1387,10 @@ async function executeBookIssue(studentId, bookId, loanDays) {
         const res = await fetch(`${API_BASE}/api/borrow/issue`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                studentId: parseInt(studentId), 
-                bookId: parseInt(bookId), 
-                loanDays: parseInt(loanDays || 14) 
+            body: JSON.stringify({
+                studentId: parseInt(studentId),
+                bookId: parseInt(bookId),
+                loanDays: parseInt(loanDays || 14)
             })
         });
         const data = await res.json();
@@ -1097,7 +1524,7 @@ function openStudentDetailModal(studentId) {
     document.getElementById("sdDept").innerText = student.department;
     document.getElementById("sdYear").innerText = `Year ${student.yearOfStudy}`;
     document.getElementById("sdPhone").innerText = student.phone || 'N/A';
-    
+
     const statusEl = document.getElementById("sdStatus");
     if (statusEl) {
         statusEl.innerText = student.status || 'ACTIVE';
@@ -1121,7 +1548,7 @@ function openStudentDetailModal(studentId) {
                 const dueDate = formatDate(bh.dueDate).split(' ')[0];
                 const returnDate = bh.returnDate ? formatDate(bh.returnDate).split(' ')[0] : '<span style="color:#9CA3AF;">Active</span>';
                 const statusClass = bh.status ? bh.status.toLowerCase() : 'borrowed';
-                
+
                 return `
                     <tr>
                         <td style="font-weight:600;color:#1E293B;">${escapeHtml(bh.bookTitle)}</td>
@@ -1159,7 +1586,7 @@ function renderAnalyticsCanvasChart() {
     const parent = canvas.parentNode;
     if (!parent) return;
     const rect = parent.getBoundingClientRect();
-    
+
     canvas.width = Math.max(280, Math.min(600, rect.width - 20));
     canvas.height = 280;
 
@@ -1192,7 +1619,7 @@ function renderAnalyticsCanvasChart() {
     const startY = height - 50;
     const chartH = height - 100;
     const maxVal = Math.max(...data.map(d => d.value), 10);
-    
+
     // Calculate dynamic bar width and gap to fit canvas width
     const availableWidth = width - startX - 30;
     const barW = Math.min(55, Math.floor(availableWidth / data.length) * 0.6);
@@ -1238,10 +1665,10 @@ async function fetchTopVisitors() {
         const res = await fetch(`${API_BASE}/api/analytics/top-visitors`);
         if (!res.ok) throw new Error("API error");
         const data = await res.json();
-        
+
         const tbody = document.getElementById("topVisitorsTableBody");
         if (!tbody) return;
-        
+
         if (!data || data.length === 0) {
             tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748B; padding:2rem;">No attendance logs or session times recorded yet.</td></tr>`;
             return;
@@ -1251,13 +1678,13 @@ async function fetchTopVisitors() {
 
         tbody.innerHTML = data.map((v, idx) => {
             const pct = (v.totalSeconds / maxSeconds) * 100;
-            
+
             // Format duration
             const totalSecs = v.totalSeconds;
             const hrs = Math.floor(totalSecs / 3600);
             const mins = Math.floor((totalSecs % 3600) / 60);
             const secs = totalSecs % 60;
-            
+
             let durationStr = "";
             if (hrs > 0) durationStr += `${hrs}h `;
             if (mins > 0 || hrs > 0) durationStr += `${mins}m `;
@@ -1359,18 +1786,18 @@ function showStudentQrCard(studentId) {
     if (!student) return;
 
     document.getElementById("qrModalTitle").innerText = "Digital ID Card";
-    
+
     document.getElementById("qrIdName").innerText = student.fullName;
     document.getElementById("qrIdCode").innerText = `Reg: ${student.studentCode}`;
     document.getElementById("qrIdDept").innerText = `Dept: ${student.department}`;
     document.getElementById("qrIdYear").innerText = `Year: ${student.yearOfStudy}`;
-    
+
     const qrData = `libraai:student:${student.studentCode}:${student.fullName}:${student.department}`;
     document.getElementById("qrIdCardImage").src = generateQRUrl(qrData);
 
     document.getElementById("qrIdCardView").classList.remove("hidden");
     document.getElementById("qrReceiptView").classList.add("hidden");
-    
+
     document.getElementById("qrModal").classList.remove("hidden");
 }
 
@@ -1379,10 +1806,10 @@ function showBorrowQrReceipt(borrowId) {
     if (!bh) return;
 
     document.getElementById("qrModalTitle").innerText = "Security Verification Receipt";
-    
+
     document.getElementById("qrReceiptBookTitle").innerText = bh.bookTitle;
     document.getElementById("qrReceiptStudent").innerText = `Issued to: ${bh.studentName} (${bh.studentCode})`;
-    
+
     const statusEl = document.getElementById("qrReceiptStatus");
     if (statusEl) {
         statusEl.innerText = bh.status || 'ACTIVE';
@@ -1404,7 +1831,7 @@ function showBorrowQrReceipt(borrowId) {
 
     document.getElementById("qrIdCardView").classList.add("hidden");
     document.getElementById("qrReceiptView").classList.remove("hidden");
-    
+
     document.getElementById("qrModal").classList.remove("hidden");
 }
 
@@ -1445,7 +1872,7 @@ function openScanner() {
             video.play();
             status.innerText = scannerMode === 'ATTENDANCE' ? "🎥 Scanning for Attendance (Entry/Exit)..." : "🎥 Scanning for student QR Code...";
             status.style.color = "#7C3AED";
-            
+
             if (scannerMode === 'ISSUE_VERIFY') {
                 const student = state.students.find(s => s.id === state.issueSelectedStudentId);
                 if (student) {
@@ -1489,7 +1916,7 @@ function closeScanner() {
 function scanTick() {
     const video = document.getElementById("scannerVideo");
     const status = document.getElementById("scannerStatus");
-    
+
     if (video && (video.readyState === video.HAVE_ENOUGH_DATA || video.videoWidth > 0)) {
         let canvas = document.getElementById("offscreenScannerCanvas");
         if (!canvas) {
@@ -1499,15 +1926,15 @@ function scanTick() {
         const ctx = canvas.getContext("2d");
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        
+
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        
+
         try {
             const code = jsQR(imageData.data, imageData.width, imageData.height, {
                 inversionAttempts: "dontInvert",
             });
-            
+
             if (code) {
                 console.log("Found QR code:", code.data);
                 handleScannedQR(code.data);
@@ -1517,7 +1944,7 @@ function scanTick() {
             console.error("Error decoding QR:", e);
         }
     }
-    
+
     if (scannerStream) {
         scannerAnimationId = requestAnimationFrame(scanTick);
     }
@@ -1533,10 +1960,10 @@ async function handleScannedQR(data) {
             }
             return;
         }
-        
+
         lastScannedCode = data;
         lastScannedTime = now;
-        
+
         playScannerBeep(880, 0.1);
 
         fetch(`${API_BASE}/api/attendance/scan`, {
@@ -1544,44 +1971,44 @@ async function handleScannedQR(data) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ qrData: data })
         })
-        .then(res => res.json())
-        .then(res => {
-            if (res.success) {
-                playScannerBeep(1000, 0.08);
-                setTimeout(() => playScannerBeep(1200, 0.08), 100);
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    playScannerBeep(1000, 0.08);
+                    setTimeout(() => playScannerBeep(1200, 0.08), 100);
 
-                if (res.action === 'CHECK_IN') {
-                    showToast(`✅ Entered: ${res.studentName} (${res.department})`, "success");
-                    // Update scanner status to remind about 15-sec rule
+                    if (res.action === 'CHECK_IN') {
+                        showToast(`✅ Entered: ${res.studentName} (${res.department})`, "success");
+                        // Update scanner status to remind about 15-sec rule
+                        const statusEl = document.getElementById("scannerStatus");
+                        if (statusEl) {
+                            statusEl.innerText = `✅ ${res.studentName} checked IN. Must stay ≥ 15 seconds before leaving.`;
+                            statusEl.style.color = "#10B981";
+                        }
+                    } else {
+                        showToast(`👋 Left: ${res.studentName} (${res.department})`, "info");
+                    }
+
+                    fetchAttendanceLogs();
+                } else if (res.remainingSeconds) {
+                    // 15-second minimum stay not met
+                    playErrorBeep();
+                    showToast(`⏱️ Too soon! Wait ${res.remainingSeconds} more second${res.remainingSeconds === 1 ? '' : 's'} before leaving.`, "warning");
+                    // Update scanner status
                     const statusEl = document.getElementById("scannerStatus");
                     if (statusEl) {
-                        statusEl.innerText = `✅ ${res.studentName} checked IN. Must stay ≥ 15 seconds before leaving.`;
-                        statusEl.style.color = "#10B981";
+                        statusEl.innerText = `⏱️ Please wait ${res.remainingSeconds}s more before scanning to leave.`;
+                        statusEl.style.color = "#F59E0B";
                     }
                 } else {
-                    showToast(`👋 Left: ${res.studentName} (${res.department})`, "info");
+                    playErrorBeep();
+                    showToast(`❌ Scan Error: ${res.message || 'Verification failed'}`, "error");
                 }
-                
-                fetchAttendanceLogs();
-            } else if (res.remainingSeconds) {
-                // 15-second minimum stay not met
+            })
+            .catch(err => {
                 playErrorBeep();
-                showToast(`⏱️ Too soon! Wait ${res.remainingSeconds} more second${res.remainingSeconds === 1 ? '' : 's'} before leaving.`, "warning");
-                // Update scanner status
-                const statusEl = document.getElementById("scannerStatus");
-                if (statusEl) {
-                    statusEl.innerText = `⏱️ Please wait ${res.remainingSeconds}s more before scanning to leave.`;
-                    statusEl.style.color = "#F59E0B";
-                }
-            } else {
-                playErrorBeep();
-                showToast(`❌ Scan Error: ${res.message || 'Verification failed'}`, "error");
-            }
-        })
-        .catch(err => {
-            playErrorBeep();
-            showToast("❌ Network error during attendance scanning.", "error");
-        });
+                showToast("❌ Network error during attendance scanning.", "error");
+            });
 
         // Continuous scanning: resume scan loop after 1.5 seconds delay
         setTimeout(() => {
@@ -1652,44 +2079,44 @@ async function handleScannedQR(data) {
 
     } else {
         closeScanner();
-        
+
         if (!data.startsWith("libraai:student:")) {
             showToast("Invalid QR code format. Not a LibraAI ID Card.", "error");
             return;
         }
-        
+
         const parts = data.split(":");
         if (parts.length < 5) {
             showToast("Malformed QR code data.", "error");
             return;
         }
-        
+
         const studentCode = parts[2];
         const fullName = parts[3];
         const department = parts[4];
-        
+
         const student = state.students.find(s => s.studentCode === studentCode);
         if (!student) {
             showToast(`Student with Reg No ${studentCode} not found in database.`, "error");
             return;
         }
-        
-        if (student.fullName.toLowerCase().trim() !== fullName.toLowerCase().trim() || 
+
+        if (student.fullName.toLowerCase().trim() !== fullName.toLowerCase().trim() ||
             student.department.toLowerCase().trim() !== department.toLowerCase().trim()) {
             showToast("QR details mismatch with server record! Verification failed.", "error");
             return;
         }
-        
+
         playScannerBeep(880, 0.15);
-        
+
         await fetchBorrowHistory();
         const activeBorrows = state.borrowHistory.filter(bh => (bh.studentCode === studentCode || bh.studentId === student.id) && (bh.status === 'BORROWED' || bh.status === 'OVERDUE'));
-        
+
         document.getElementById("verifyName").innerText = student.fullName;
         document.getElementById("verifyReg").innerText = `Reg: ${student.studentCode}`;
         document.getElementById("verifyDept").innerText = `Dept: ${student.department}`;
         document.getElementById("verifyYear").innerText = `Year: ${student.yearOfStudy}`;
-        
+
         const listContainer = document.getElementById("verifyBorrowList");
         if (activeBorrows.length === 0) {
             listContainer.innerHTML = `<div style="text-align:center; color:#64748B; padding:0.8rem; font-size:0.85rem;">
@@ -1713,7 +2140,7 @@ async function handleScannedQR(data) {
                 </div>
             `).join('');
         }
-        
+
         document.getElementById("verifyIssueBtn").setAttribute("data-student-id", student.id);
         document.getElementById("verificationResultModal").classList.remove("hidden");
         showToast(`Verification successful for ${student.fullName}!`, "success");
@@ -1770,7 +2197,7 @@ async function fetchAttendanceLogs() {
             state.attendanceLogs = data.logs || [];
             state.attendanceCurrentlyInside = data.currentlyInside || 0;
             state.attendanceTodayVisits = data.totalVisitsToday || 0;
-            
+
             updateAttendanceStatsAndLogs(state.attendanceCurrentlyInside, state.attendanceTodayVisits);
         }
     } catch (err) {
@@ -1784,7 +2211,7 @@ function updateAttendanceStatsAndLogs(inside, visits) {
     const visitsEl = document.getElementById("attendanceTodayVisitsCount");
     if (insideEl) insideEl.innerText = inside;
     if (visitsEl) visitsEl.innerText = visits;
-    
+
     // Also re-render list of logs
     renderAttendanceTable();
 }
@@ -1797,7 +2224,7 @@ function renderAttendanceTable() {
     const deptFilter = document.getElementById("attendanceDeptFilter")?.value || "ALL";
 
     const filtered = state.attendanceLogs.filter(log => {
-        const matchesQuery = !query || 
+        const matchesQuery = !query ||
             (log.studentName && log.studentName.toLowerCase().includes(query)) ||
             (log.studentCode && log.studentCode.toLowerCase().includes(query));
         const matchesDept = deptFilter === "ALL" || log.department === deptFilter;
@@ -1853,12 +2280,12 @@ function formatDuration(checkInStr, checkOutStr) {
         const checkOut = new Date(checkOutStr.replace(" ", "T"));
         const diffMs = checkOut - checkIn;
         if (isNaN(diffMs) || diffMs < 0) return "—";
-        
+
         const diffSecs = Math.floor(diffMs / 1000);
         const hrs = Math.floor(diffSecs / 3600);
         const mins = Math.floor((diffSecs % 3600) / 60);
         const secs = diffSecs % 60;
-        
+
         let result = "";
         if (hrs > 0) result += `${hrs}h `;
         if (mins > 0 || hrs > 0) result += `${mins}m `;

@@ -33,6 +33,10 @@ public class AuthService {
         return userDAO.registerStudent(student, password);
     }
 
+    public boolean changePassword(String usernameOrEmail, String currentPassword, String newPassword) {
+        return userDAO.changePassword(usernameOrEmail, currentPassword, newPassword);
+    }
+
     public User getCurrentUser() {
         return currentUser;
     }
@@ -41,3 +45,4 @@ public class AuthService {
         this.currentUser = null;
     }
 }
+

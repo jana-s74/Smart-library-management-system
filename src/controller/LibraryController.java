@@ -110,8 +110,13 @@ public class LibraryController {
         return studentService.updateStatus(studentId, status);
     }
 
+    public boolean changePassword(String usernameOrEmail, String currentPassword, String newPassword) {
+        return authService.changePassword(usernameOrEmail, currentPassword, newPassword);
+    }
+
     // Analytics
     public Map<String, Object> getDashboardStats() {
         return analyticsService.getDashboardStats();
     }
 }
+
